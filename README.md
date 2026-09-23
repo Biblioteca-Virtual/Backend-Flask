@@ -8,3 +8,6 @@ python -m venv .venv
 
 # Ejecutar el servicio 
 python run.py 
+
+# Ejecutar BD 
+docker compose up

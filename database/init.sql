@@ -1,6 +1,5 @@
 -- ============================================
 -- BIBLIOTECA VIRTUAL
--- Issue #3 - Modelo y esquema de datos
 -- ============================================
 
 -- ============================================
@@ -118,4 +117,34 @@ CREATE TABLE prestamos (
             fecha_devolucion IS NULL
             OR fecha_devolucion >= fecha_prestamo
         )
+);
+
+
+-- ============================================
+-- TABLA: resenas
+-- ============================================
+
+CREATE TABLE resenas (
+    id SERIAL PRIMARY KEY,
+    libro_id INTEGER NOT NULL,
+    usuario_id INTEGER NOT NULL,
+    calificacion INTEGER NOT NULL,
+    comentario TEXT,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_resena_libro
+        FOREIGN KEY (libro_id)
+        REFERENCES libros(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_resena_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT check_calificacion
+        CHECK (calificacion BETWEEN 1 AND 5),
+
+    CONSTRAINT uq_resena_libro_usuario
+        UNIQUE (libro_id, usuario_id)
 );
