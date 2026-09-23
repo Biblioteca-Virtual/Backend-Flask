@@ -1,7 +1,15 @@
 from app.db import execute, fetch_one, fetch_value
-from app.errors.exceptions import ConflictError, UnauthorizedError
+from app.errors.exceptions import ConflictError, NotFoundError, UnauthorizedError
 from app.models.user import Usuario
 from app.security import create_token, hash_password, is_legacy_password_hash, verify_password
+
+
+def get_user(user_id):
+    row = fetch_one("SELECT * FROM usuarios WHERE id = %s", (user_id,))
+    usuario = Usuario.from_row(row)
+    if usuario is None:
+        raise NotFoundError("Usuario")
+    return usuario.to_dict()
 
 
 def register(data):

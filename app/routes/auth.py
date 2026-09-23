@@ -1,7 +1,8 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
 from app.schemas.user_schema import validate_login, validate_register
-from app.services.user_service import login, register
+from app.security import login_required
+from app.services.user_service import get_user, login, register
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -20,3 +21,9 @@ def login_user():
     validated = validate_login(data)
     result = login(validated)
     return jsonify({"data": result}), 200
+
+
+@auth_bp.get("/me")
+@login_required
+def get_me():
+    return jsonify({"data": get_user(g.usuario_id)}), 200
