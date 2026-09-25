@@ -11,3 +11,6 @@ python run.py
 
 # Ejecutar BD 
 docker compose up
+
+# Ejecutar pruebas
+python -m unittest discover -s tests -v

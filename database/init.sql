@@ -91,6 +91,8 @@ CREATE TABLE libros_autores (
 
 -- ============================================
 -- TABLA: prestamos
+-- La API de lecturas usa este registro para conservar la disponibilidad
+-- de copias y el estado de cada lectura.
 -- ============================================
 
 CREATE TABLE prestamos (
@@ -99,7 +101,9 @@ CREATE TABLE prestamos (
     libro_id INTEGER NOT NULL,
     fecha_prestamo TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_devolucion TIMESTAMP,
+    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado VARCHAR(20) NOT NULL DEFAULT 'activo',
+    progreso INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT fk_prestamo_usuario
         FOREIGN KEY (usuario_id)
@@ -112,12 +116,21 @@ CREATE TABLE prestamos (
     CONSTRAINT check_estado_prestamo
         CHECK (estado IN ('activo', 'devuelto')),
 
+    CONSTRAINT check_progreso_prestamo
+        CHECK (progreso BETWEEN 0 AND 100),
+
     CONSTRAINT check_fecha_devolucion
         CHECK (
             fecha_devolucion IS NULL
             OR fecha_devolucion >= fecha_prestamo
         )
 );
+
+CREATE INDEX idx_prestamos_usuario_estado
+    ON prestamos(usuario_id, estado);
+
+CREATE INDEX idx_prestamos_libro_estado
+    ON prestamos(libro_id, estado);
 
 
 -- ============================================
