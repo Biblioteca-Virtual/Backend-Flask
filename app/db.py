@@ -1,6 +1,8 @@
+from contextlib import contextmanager
+
+from flask import current_app
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
-from flask import current_app
 
 _pool = None
 
@@ -24,6 +26,20 @@ def connect():
 def close(conn):
     if _pool is not None:
         _pool.putconn(conn)
+
+
+@contextmanager
+def transaction():
+    conn = connect()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            yield cursor
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        close(conn)
 
 
 def fetch_all(sql, params=()):

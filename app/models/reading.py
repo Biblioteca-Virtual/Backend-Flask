@@ -12,6 +12,8 @@ class Prestamo:
     libro_titulo: str = None
     usuario_nombre: str = None
     usuario_apellido: str = None
+    fecha_actualizacion: str = None
+    progreso: int = 0
 
     def to_dict(self):
         return {
@@ -26,7 +28,9 @@ class Prestamo:
             "libro_titulo": self.libro_titulo,
             "fecha_prestamo": self.fecha_prestamo,
             "fecha_devolucion": self.fecha_devolucion,
+            "fecha_actualizacion": self.fecha_actualizacion,
             "estado": self.estado,
+            "progreso": self.progreso,
         }
 
     @classmethod
@@ -39,7 +43,9 @@ class Prestamo:
             libro_id=row["libro_id"],
             fecha_prestamo=row["fecha_prestamo"],
             fecha_devolucion=row.get("fecha_devolucion"),
+            fecha_actualizacion=row.get("fecha_actualizacion"),
             estado=row["estado"],
+            progreso=row.get("progreso", 0),
             libro_titulo=row.get("libro_titulo"),
             usuario_nombre=row.get("usuario_nombre"),
             usuario_apellido=row.get("usuario_apellido"),
