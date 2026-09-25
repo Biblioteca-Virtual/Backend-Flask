@@ -81,3 +81,72 @@ de una transacción.
 Las instalaciones nuevas usan `database/init.sql`. Para una base PostgreSQL que
 ya tenga el volumen inicial, aplicar `database/migrations/007_gestion_lecturas.sql`
 con `psql` antes de iniciar la API.
+
+## Gestión de reseñas
+
+Las reseñas pertenecen a un usuario y a un libro. Todos los endpoints requieren
+autenticación. La API toma el usuario del token y no acepta un `usuario_id` del
+cliente para crear, modificar o eliminar una reseña.
+
+Un usuario puede registrar como máximo una reseña por libro. Las consultas son
+públicas para los usuarios autenticados; la modificación y eliminación solo
+pueden realizarse sobre reseñas propias.
+
+### Crear una reseña
+
+```http
+POST /api/reviews
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+```json
+{
+  "libro_id": 1,
+  "calificacion": 5,
+  "comentario": "Excelente lectura"
+}
+```
+
+`libro_id` y `calificacion` son obligatorios. La calificación debe ser un entero
+entre 1 y 5. El comentario es opcional y puede ser texto o `null`.
+
+### Consultar reseñas
+
+```http
+GET /api/reviews
+GET /api/reviews/{id}
+Authorization: Bearer <token>
+```
+
+La colección devuelve las reseñas ordenadas por identificador y la consulta
+individual devuelve una reseña con el título del libro y el nombre del usuario
+que la escribió.
+
+### Modificar una reseña
+
+```http
+PUT /api/reviews/{id}
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+```json
+{
+  "calificacion": 4,
+  "comentario": "Actualización de mi reseña"
+}
+```
+
+Se debe enviar `calificacion`, `comentario` o ambos. Los campos omitidos conservan
+su valor. Una reseña perteneciente a otro usuario responde `404`.
+
+### Eliminar una reseña
+
+```http
+DELETE /api/reviews/{id}
+Authorization: Bearer <token>
+```
+
+Solo el propietario puede eliminar la reseña. La respuesta exitosa es `200` con
+`{"message": "Reseña eliminada"}`.
