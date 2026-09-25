@@ -12,11 +12,13 @@ def create_app():
 
     from app.routes.auth import auth_bp
     from app.routes.books import books_bp
+    from app.routes.docs import docs_bp
     from app.routes.health import health_bp
     from app.routes.readings import readings_bp
     from app.routes.reviews import reviews_bp
     from app.routes.roulette import roulette_bp
 
+    app.register_blueprint(docs_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(books_bp, url_prefix="/api/books")
