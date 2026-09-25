@@ -18,7 +18,7 @@
 | `POST` | `/reviews` | ✅ | Crear reseña |
 | `PUT` | `/reviews/{id}` | ✅ | Editar reseña |
 | `DELETE` | `/reviews/{id}` | ✅ | Eliminar reseña |
-| `POST` | `/roulette/spin` | ✅ | Seleccionar lectura |
+| `POST` | `/roulette/spin` | ✅ | Seleccionar y registrar lectura |
 
 ## Gestión de lecturas
 
@@ -81,6 +81,37 @@ de una transacción.
 Las instalaciones nuevas usan `database/init.sql`. Para una base PostgreSQL que
 ya tenga el volumen inicial, aplicar `database/migrations/007_gestion_lecturas.sql`
 con `psql` antes de iniciar la API.
+
+## Ruleta de lectura
+
+La ruleta selecciona de forma aleatoria un libro con al menos una copia libre.
+El usuario se obtiene del token: cada giro registra una lectura activa con
+progreso `0` y no acepta un `usuario_id` desde el cliente.
+
+La disponibilidad se calcula comparando la cantidad total de cada libro con sus
+lecturas activas. Si un libro se agota después de ser seleccionado, la API
+reintenta con otro candidato. Si no quedan libros disponibles, responde `409`.
+
+### Girar la ruleta
+
+```http
+POST /api/roulette/spin
+Authorization: Bearer <token>
+```
+
+La respuesta exitosa es `201` con la lectura creada:
+
+```json
+{
+  "data": {
+    "id": 10,
+    "usuario_id": 42,
+    "libro_id": 3,
+    "estado": "activo",
+    "progreso": 0
+  }
+}
+```
 
 ## Gestión de reseñas
 
