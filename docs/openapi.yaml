@@ -1,0 +1,1266 @@
+openapi: 3.0.3
+info:
+  title: Biblioteca Virtual API
+  version: 1.0.0
+  description: |
+    API REST de Biblioteca Virtual.
+
+    Todos los recursos de libros, lecturas, reseñas, ruleta y el perfil de usuario
+    requieren un token JWT. Enviarlo en la cabecera `Authorization` con el formato
+    `Bearer <token>`. Los endpoints de salud, registro, inicio de sesión y esta
+    especificación son públicos.
+
+    Las fechas se expresan en formato ISO 8601. Los identificadores de usuario,
+    libro, lectura y reseña son enteros positivos.
+  contact:
+    name: Biblioteca Virtual
+servers:
+  - url: http://localhost:5000
+    description: Entorno local
+tags:
+  - name: Salud
+    description: Estado del servicio y de la base de datos
+  - name: Autenticación
+    description: Registro, inicio de sesión y perfil autenticado
+  - name: Libros
+    description: Gestión del catálogo de libros
+  - name: Lecturas
+    description: Registro y seguimiento de lecturas de usuarios
+  - name: Reseñas
+    description: Reseñas públicas de libros
+  - name: Ruleta
+    description: Selección aleatoria de libros disponibles
+  - name: Documentación
+    description: Especificación de la API
+security:
+  - BearerAuth: []
+paths:
+  /openapi.yaml:
+    get:
+      tags:
+        - Documentación
+      summary: Obtener la especificación OpenAPI
+      description: Devuelve esta especificación en formato YAML.
+      security: []
+      responses:
+        '200':
+          description: Especificación OpenAPI de la API.
+          content:
+            application/yaml:
+              schema:
+                type: string
+              example: "openapi: 3.0.3"
+
+  /health:
+    get:
+      tags:
+        - Salud
+      summary: Consultar el estado de la API
+      description: Comprueba que la API responde y verifica la conexión con la base de datos.
+      security: []
+      responses:
+        '200':
+          description: Estado del servicio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                disponible:
+                  value:
+                    status: ok
+                    database: ok
+                baseDeDatosIndisponible:
+                  value:
+                    status: ok
+                    database: indisponible
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/register:
+    post:
+      tags:
+        - Autenticación
+      summary: Registrar un usuario
+      description: Crea una cuenta de usuario y devuelve sus datos públicos.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: lector@example.com
+              password: contraseña-segura
+              nombre: Lector
+              apellido: Apellido
+      responses:
+        '201':
+          description: Usuario registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      description: Valida las credenciales y devuelve un token JWT y los datos del usuario.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: lector@example.com
+              password: contraseña-segura
+      responses:
+        '200':
+          description: Credenciales válidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Autenticación
+      summary: Obtener el perfil autenticado
+      description: Devuelve los datos del usuario asociado al token JWT.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/books/:
+    get:
+      tags:
+        - Libros
+      summary: Listar libros
+      description: Devuelve el catálogo de libros. Puede filtrarse por una búsqueda de texto.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookSearch'
+      responses:
+        '200':
+          description: Lista de libros.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Libros
+      summary: Crear un libro
+      description: Añade un libro al catálogo.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+            example:
+              titulo: El nombre de la rosa
+              cantidad: 3
+              categoria_id: 1
+              autores:
+                - 1
+              anio_publicacion: 1980
+              isbn: 978-84-204-2222-8
+              descripcion: Novela histórica.
+      responses:
+        '201':
+          description: Libro creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/books/{book_id}:
+    get:
+      tags:
+        - Libros
+      summary: Obtener un libro
+      description: Devuelve un libro por su identificador.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: Libro encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Libros
+      summary: Actualizar un libro
+      description: Actualiza uno o más campos de un libro existente.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookRequest'
+            example:
+              cantidad: 0
+              titulo: El nombre de la rosa
+      responses:
+        '200':
+          description: Libro actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Libros
+      summary: Eliminar un libro
+      description: Elimina un libro del catálogo.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/readings/:
+    get:
+      tags:
+        - Lecturas
+      summary: Listar lecturas del usuario
+      description: Devuelve las lecturas del usuario autenticado.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReadingState'
+        - $ref: '#/components/parameters/ReadingBookId'
+      responses:
+        '200':
+          description: Lista de lecturas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Lecturas
+      summary: Registrar una lectura
+      description: Registra una lectura para el usuario autenticado.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReadingRequest'
+            example:
+              libro_id: 1
+              progreso: 0
+      responses:
+        '201':
+          description: Lectura registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/readings/{reading_id}:
+    get:
+      tags:
+        - Lecturas
+      summary: Obtener una lectura
+      description: Devuelve una lectura que pertenece al usuario autenticado.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReadingId'
+      responses:
+        '200':
+          description: Lectura encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Lecturas
+      summary: Actualizar una lectura
+      description: Actualiza el estado o el progreso de una lectura propia.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReadingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReadingRequest'
+            example:
+              estado: activo
+              progreso: 35
+      responses:
+        '200':
+          description: Lectura actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Lecturas
+      summary: Eliminar una lectura
+      description: Elimina una lectura propia.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReadingId'
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reviews/:
+    get:
+      tags:
+        - Reseñas
+      summary: Listar reseñas
+      description: Devuelve todas las reseñas con sus datos de libro y usuario.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de reseñas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Reseñas
+      summary: Crear una reseña
+      description: Crea una reseña para un libro. El usuario se obtiene del token JWT.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+            example:
+              libro_id: 1
+              calificacion: 5
+              comentario: Una novela increíble.
+      responses:
+        '201':
+          description: Reseña creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reviews/{review_id}:
+    get:
+      tags:
+        - Reseñas
+      summary: Obtener una reseña
+      description: Devuelve una reseña por su identificador.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReviewId'
+      responses:
+        '200':
+          description: Reseña encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Reseñas
+      summary: Actualizar una reseña
+      description: Actualiza una reseña propia.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReviewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+            example:
+              calificacion: 4
+              comentario: Actualización de la reseña.
+      responses:
+        '200':
+          description: Reseña actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Reseñas
+      summary: Eliminar una reseña
+      description: Elimina una reseña propia.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReviewId'
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/roulette/spin:
+    post:
+      tags:
+        - Ruleta
+      summary: Girar la ruleta
+      description: |
+        Selecciona de forma aleatoria un libro disponible y registra una lectura
+        pendiente para el usuario autenticado. Si no hay libros disponibles,
+        devuelve 409 Conflict y no modifica el catálogo ni las lecturas del usuario.
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Libro seleccionado y lectura creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadingResponse'
+              example:
+                data:
+                  id: 1
+                  usuario_id: 1
+                  usuario: Lector Apellido
+                  libro_id: 7
+                  libro_titulo: El nombre de la rosa
+                  fecha_prestamo: '2026-09-25T12:00:00Z'
+                  fecha_devolucion: null
+                  fecha_actualizacion: '2026-09-25T12:00:00Z'
+                  estado: activo
+                  progreso: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT devuelto por `POST /api/auth/login`.
+        Enviarlo como `Authorization: Bearer <token>`.
+
+  parameters:
+    BookId:
+      name: book_id
+      in: path
+      required: true
+      description: Identificador único del libro.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 2147483647
+    ReadingId:
+      name: reading_id
+      in: path
+      required: true
+      description: Identificador único de la lectura.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 2147483647
+    ReviewId:
+      name: review_id
+      in: path
+      required: true
+      description: Identificador único de la reseña.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 2147483647
+    BookSearch:
+      name: q
+      in: query
+      required: false
+      description: Texto para buscar en título, ISBN, descripción o autor.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    ReadingState:
+      name: estado
+      in: query
+      required: false
+      description: Filtra las lecturas por estado.
+      schema:
+        type: string
+        enum:
+          - activo
+          - devuelto
+    ReadingBookId:
+      name: libro_id
+      in: query
+      required: false
+      description: Filtra las lecturas por libro.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 2147483647
+
+  responses:
+    ValidationError:
+      description: La solicitud contiene datos inválidos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Datos inválidos
+            errors:
+              - El email es obligatorio.
+              - La contraseña debe tener al menos 6 caracteres.
+    Unauthorized:
+      description: No se está autenticado o el token no es válido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: No autorizado
+            errors:
+              - Token requerido
+    NotFoundError:
+      description: El recurso solicitado no existe o no pertenece al usuario autenticado.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/SimpleErrorResponse'
+    ConflictError:
+      description: La operación entra en conflicto con el estado actual de los datos.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/SimpleErrorResponse'
+          example:
+            error: No hay libros disponibles
+            errors:
+              - No hay libros disponibles para la ruleta
+    InternalServerError:
+      description: Error inesperado del servidor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleErrorResponse'
+          example:
+            error: Error interno del servidor
+    MessageResponse:
+      description: La operación se completó correctamente.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - database
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+          example: ok
+        database:
+          type: string
+          enum:
+            - ok
+            - indisponible
+          example: ok
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - nombre
+        - apellido
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 120
+          example: lector@example.com
+        password:
+          type: string
+          format: password
+          minLength: 6
+          maxLength: 255
+          example: contraseña-segura
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Lector
+        apellido:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Apellido
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 120
+          example: lector@example.com
+        password:
+          type: string
+          format: password
+          example: contraseña-segura
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - nombre
+        - apellido
+        - fecha_registro
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        email:
+          type: string
+          format: email
+          example: lector@example.com
+        nombre:
+          type: string
+          example: Lector
+        apellido:
+          type: string
+          example: Apellido
+        fecha_registro:
+          type: string
+          format: date-time
+          example: '2026-09-25T12:00:00Z'
+    LoginData:
+      type: object
+      required:
+        - token
+        - usuario
+      properties:
+        token:
+          type: string
+          description: Token JWT para las peticiones autenticadas.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token.firma
+        usuario:
+          $ref: '#/components/schemas/User'
+    Autor:
+      type: object
+      required:
+        - id
+        - nombre
+        - apellido
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        nombre:
+          type: string
+          example: Umberto
+        apellido:
+          type: string
+          example: Eco
+    Categoria:
+      type: object
+      required:
+        - id
+        - nombre
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        nombre:
+          type: string
+          example: Novela
+    Book:
+      type: object
+      required:
+        - id
+        - titulo
+        - isbn
+        - descripcion
+        - anio_publicacion
+        - cantidad
+        - autores
+        - categoria
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        titulo:
+          type: string
+          example: El nombre de la rosa
+        isbn:
+          type: string
+          nullable: true
+          example: 978-84-204-2222-8
+        cantidad:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 3
+        autores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Autor'
+        categoria:
+          $ref: '#/components/schemas/Categoria'
+        anio_publicacion:
+          type: integer
+          format: int32
+          nullable: true
+          example: 1980
+        descripcion:
+          type: string
+          nullable: true
+          example: Novela histórica.
+    CreateBookRequest:
+      type: object
+      required:
+        - titulo
+        - cantidad
+        - categoria_id
+        - autores
+      additionalProperties: false
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: El nombre de la rosa
+        isbn:
+          type: string
+          maxLength: 20
+          nullable: true
+          example: 978-84-204-2222-8
+        cantidad:
+          type: integer
+          format: int32
+          minimum: 0
+          default: 1
+          example: 3
+        autores:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int32
+            minimum: 1
+        categoria_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        anio_publicacion:
+          type: integer
+          format: int32
+          nullable: true
+          example: 1980
+        descripcion:
+          type: string
+          nullable: true
+          example: Novela histórica.
+    UpdateBookRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 200
+        isbn:
+          type: string
+          maxLength: 20
+          nullable: true
+        cantidad:
+          type: integer
+          format: int32
+          minimum: 0
+        autores:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int32
+            minimum: 1
+        categoria_id:
+          type: integer
+          format: int32
+          minimum: 1
+        anio_publicacion:
+          type: integer
+          format: int32
+          nullable: true
+        descripcion:
+          type: string
+          nullable: true
+    Reading:
+      type: object
+      required:
+        - id
+        - usuario_id
+        - libro_id
+        - fecha_prestamo
+        - fecha_devolucion
+        - fecha_actualizacion
+        - estado
+        - progreso
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        usuario_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        usuario:
+          type: string
+          nullable: true
+          example: Lector Apellido
+        libro_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 7
+        libro_titulo:
+          type: string
+          nullable: true
+          example: El nombre de la rosa
+        fecha_prestamo:
+          type: string
+          format: date-time
+          example: '2026-09-25T12:00:00Z'
+        fecha_devolucion:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        fecha_actualizacion:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-09-25T12:00:00Z'
+        estado:
+          type: string
+          enum:
+            - activo
+            - devuelto
+          example: activo
+        progreso:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+          example: 0
+    CreateReadingRequest:
+      type: object
+      required:
+        - libro_id
+      additionalProperties: false
+      properties:
+        libro_id:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 2147483647
+          example: 1
+        progreso:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+          default: 0
+          example: 0
+    UpdateReadingRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        progreso:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+        estado:
+          type: string
+          enum:
+            - activo
+            - devuelto
+    Review:
+      type: object
+      required:
+        - id
+        - libro_id
+        - libro_titulo
+        - usuario_id
+        - usuario
+        - calificacion
+        - comentario
+        - fecha_creacion
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        libro_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        libro_titulo:
+          type: string
+          example: El nombre de la rosa
+        usuario_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        usuario:
+          type: string
+          example: Lector Apellido
+        calificacion:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+          example: 5
+        comentario:
+          type: string
+          nullable: true
+          example: Una novela increíble.
+        fecha_creacion:
+          type: string
+          format: date-time
+          example: '2026-09-25T12:00:00Z'
+    CreateReviewRequest:
+      type: object
+      required:
+        - libro_id
+        - calificacion
+      additionalProperties: false
+      properties:
+        libro_id:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 2147483647
+          example: 1
+        calificacion:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+          example: 5
+        comentario:
+          type: string
+          nullable: true
+          maxLength: 2000
+          example: Una novela increíble.
+    UpdateReviewRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        calificacion:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+          example: 4
+        comentario:
+          type: string
+          nullable: true
+          maxLength: 2000
+          example: Actualización de la reseña.
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - errors
+      properties:
+        error:
+          type: string
+          example: Datos inválidos
+        errors:
+          type: array
+          items:
+            type: string
+          example:
+            - El email es obligatorio.
+    SimpleErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: Error interno del servidor
+    MessageResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Libro eliminado
+    UserResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+    LoginResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/LoginData'
+    BookResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Book'
+    BookListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+    ReadingResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Reading'
+    ReadingListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reading'
+    ReviewResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Review'
+    ReviewListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
