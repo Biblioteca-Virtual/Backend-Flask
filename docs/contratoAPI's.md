@@ -1,5 +1,9 @@
+# Documentación de la API
+
+## Resumen de Endpoints
+
 | Método | Endpoint | Auth | Función |
-|---|---|---:|---|
+| :--- | :--- | :---: | :--- |
 | `GET` | `/health` | ❌ | Estado del servidor |
 | `POST` | `/auth/register` | ❌ | Registrar usuario |
 | `POST` | `/auth/login` | ❌ | Iniciar sesión |
@@ -20,6 +24,7 @@
 | `DELETE` | `/reviews/{id}` | ✅ | Eliminar reseña |
 | `POST` | `/roulette/spin` | ✅ | Seleccionar y registrar lectura |
 
+---
 ## Gestión de lecturas
 
 Los endpoints de lecturas pertenecen al usuario autenticado. Por eso, el cliente
