@@ -37,6 +37,7 @@ class OpenApiSpecTest(unittest.TestCase):
             "/api/reviews/{review_id}",
             "/api/roulette/spin",
             "/openapi.yaml",
+            "/docs",
         )
 
         for path in documented_paths:
@@ -45,6 +46,15 @@ class OpenApiSpecTest(unittest.TestCase):
 
         self.assertIn("BearerAuth:", spec)
         self.assertIn("application/json:", spec)
+
+    def test_swagger_ui_is_served_by_the_application(self):
+        response = self.client.get("/docs")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.mimetype.startswith("text/html"))
+        body = response.get_data(as_text=True)
+        self.assertIn('id="swagger-ui"', body)
+        self.assertIn('url: "/openapi.yaml"', body)
 
 
 if __name__ == "__main__":

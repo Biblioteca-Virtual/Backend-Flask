@@ -51,6 +51,23 @@ paths:
                 type: string
               example: "openapi: 3.0.3"
 
+  /docs:
+    get:
+      tags:
+        - Documentación
+      summary: Abrir la interfaz Swagger UI
+      description: |
+        Devuelve la interfaz web de Swagger UI, que carga esta misma
+        especificación para permitir ejecutar y probar los endpoints.
+      security: []
+      responses:
+        '200':
+          description: Interfaz Swagger UI en formato HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+
   /health:
     get:
       tags:
