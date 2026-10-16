@@ -1,111 +1,101 @@
 from app.errors.exceptions import ValidationError
+from app.schemas.common import (
+    check_allowed_fields,
+    check_non_negative_int,
+    check_positive_int,
+    ensure_dict,
+    is_integer,
+)
 
-
-def _require_int(data, field):
-    value = data.get(field)
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise ValidationError([f"{field} debe ser un número entero"])
-    return value
+BOOK_FIELDS = {
+    "titulo",
+    "isbn",
+    "descripcion",
+    "anio_publicacion",
+    "cantidad",
+    "categoria_id",
+    "autores",
+}
 
 
 def _valid_autores(autores):
-    return (
-        isinstance(autores, list)
-        and all(
-            isinstance(a, int) and not isinstance(a, bool) for a in autores
-        )
+    return isinstance(autores, list) and all(
+        is_integer(a) for a in autores
     )
 
 
+def _check_categoria_id(categoria_id, errors, required=False):
+    if categoria_id is None:
+        if required:
+            errors.append("categoria_id es requerido")
+    elif not is_integer(categoria_id):
+        errors.append("categoria_id debe ser un número entero")
+
+
+def _check_autores_field(autores, errors, required=False):
+    if autores is None and not required:
+        return
+    if not _valid_autores(autores or []):
+        errors.append("autores debe ser una lista de ids")
+
+
+def _validate_book_common(data, errors, is_create=False):
+    check_positive_int(data.get("anio_publicacion"), "anio_publicacion", errors)
+    check_categoria_id(data.get("categoria_id"), errors, required=is_create)
+    _check_autores_field(data.get("autores"), errors, required=is_create)
+
+    cantidad = data.get("cantidad", 1 if is_create else None)
+    if is_create or "cantidad" in data:
+        check_non_negative_int(cantidad, "cantidad", errors)
+
+
 def validate_create_book(data):
+    ensure_dict(data)
     errors = []
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
 
     titulo = (data.get("titulo") or "").strip()
     if not titulo:
         errors.append("titulo es requerido")
 
-    anio = data.get("anio_publicacion")
-    if anio is not None and (
-        isinstance(anio, bool) or not isinstance(anio, int) or anio <= 0
-    ):
-        errors.append("anio_publicacion debe ser un entero positivo")
-
-    cantidad = data.get("cantidad", 1)
-    if isinstance(cantidad, bool) or not isinstance(cantidad, int) or cantidad < 0:
-        errors.append("cantidad debe ser un entero mayor o igual a 0")
-
-    categoria_id = data.get("categoria_id")
-    if categoria_id is None:
-        errors.append("categoria_id es requerido")
-    elif isinstance(categoria_id, bool) or not isinstance(categoria_id, int):
-        errors.append("categoria_id debe ser un número entero")
-
-    autores = data.get("autores", [])
-    if not _valid_autores(autores):
-        errors.append("autores debe ser una lista de ids")
-
+    _validate_book_common(data, errors, is_create=True)
     if errors:
         raise ValidationError(errors)
 
-    isbn = (data.get("isbn") or "").strip() or None
-    descripcion = data.get("descripcion")
-
     return {
         "titulo": titulo,
-        "isbn": isbn,
-        "descripcion": descripcion,
-        "anio_publicacion": anio,
-        "cantidad": cantidad,
-        "categoria_id": categoria_id,
-        "autores": autores,
+        "isbn": (data.get("isbn") or "").strip() or None,
+        "descripcion": data.get("descripcion"),
+        "anio_publicacion": data.get("anio_publicacion"),
+        "cantidad": data.get("cantidad", 1),
+        "categoria_id": data.get("categoria_id"),
+        "autores": data.get("autores", []),
     }
+
+
+def _collect_update_book_data(data):
+    result = {}
+    if "titulo" in data:
+        result["titulo"] = str(data["titulo"]).strip()
+    if "isbn" in data:
+        result["isbn"] = (data.get("isbn") or "").strip() or None
+    for field in ("descripcion", "anio_publicacion", "cantidad", "categoria_id", "autores"):
+        if field in data:
+            result[field] = data[field]
+    return result
 
 
 def validate_update_book(data):
+    ensure_dict(data)
+    check_allowed_fields(
+        data,
+        BOOK_FIELDS,
+        "Debe indicar al menos un campo a actualizar entre "
+        "titulo, isbn, descripcion, anio_publicacion, cantidad, "
+        "categoria_id, autores",
+    )
+
     errors = []
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
-
-    allowed = {
-        "titulo",
-        "isbn",
-        "descripcion",
-        "anio_publicacion",
-        "cantidad",
-        "categoria_id",
-        "autores",
-    }
-    provided = {key for key in data if key in allowed}
-    if not provided:
-        raise ValidationError(
-            ["Debe indicar al menos un campo a actualizar entre "
-             "titulo, isbn, descripcion, anio_publicacion, cantidad, "
-             "categoria_id, autores"]
-        )
-
-    anio = data.get("anio_publicacion")
-    if anio is not None and (
-        isinstance(anio, bool) or not isinstance(anio, int) or anio <= 0
-    ):
-        errors.append("anio_publicacion debe ser un entero positivo")
-
-    cantidad = data.get("cantidad")
-    if cantidad is not None and (
-        isinstance(cantidad, bool) or not isinstance(cantidad, int) or cantidad < 0
-    ):
-        errors.append("cantidad debe ser un entero mayor o igual a 0")
-
-    categoria_id = data.get("categoria_id")
-    if categoria_id is not None and (
-        isinstance(categoria_id, bool) or not isinstance(categoria_id, int)
-    ):
-        errors.append("categoria_id debe ser un número entero")
-
-    autores = data.get("autores")
-    if autores is not None and not _valid_autores(autores):
-        errors.append("autores debe ser una lista de ids")
+    _validate_book_common(data, errors, is_create=False)
 
     titulo = data.get("titulo")
     if titulo is not None and not str(titulo).strip():
@@ -114,19 +104,4 @@ def validate_update_book(data):
     if errors:
         raise ValidationError(errors)
 
-    result = {}
-    if titulo is not None:
-        result["titulo"] = str(titulo).strip()
-    if "isbn" in data:
-        result["isbn"] = (data.get("isbn") or "").strip() or None
-    if "descripcion" in data:
-        result["descripcion"] = data.get("descripcion")
-    if "anio_publicacion" in data:
-        result["anio_publicacion"] = anio
-    if "cantidad" in data:
-        result["cantidad"] = cantidad
-    if "categoria_id" in data:
-        result["categoria_id"] = categoria_id
-    if "autores" in data:
-        result["autores"] = autores
-    return result
+    return _collect_update_book_data(data)

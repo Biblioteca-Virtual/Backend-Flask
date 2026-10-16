@@ -645,7 +645,7 @@ components:
       name: q
       in: query
       required: false
-      description: Texto para buscar en título, ISBN, descripción o autor.
+      description: Texto para buscar en el título (coincidencia parcial, sin distinguir mayúsculas).
       schema:
         type: string
         minLength: 1
@@ -912,9 +912,7 @@ components:
       type: object
       required:
         - titulo
-        - cantidad
         - categoria_id
-        - autores
       additionalProperties: false
       properties:
         titulo:

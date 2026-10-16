@@ -42,46 +42,34 @@ def transaction():
         close(conn)
 
 
-def fetch_all(sql, params=()):
+def _run_query(sql, params=(), fetch_fn=None, commit=False):
     conn = connect()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(sql, params)
-            return cursor.fetchall()
-    finally:
-        close(conn)
-
-
-def fetch_one(sql, params=()):
-    conn = connect()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(sql, params)
-            return cursor.fetchone()
-    finally:
-        close(conn)
-
-
-def fetch_value(sql, params=()):
-    conn = connect()
-    try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(sql, params)
-            conn.commit()
-            return cursor.fetchone()
-    finally:
-        close(conn)
-
-
-def execute(sql, params=()):
-    conn = connect()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, params)
-            conn.commit()
-            return cursor.rowcount
+            result = fetch_fn(cursor) if fetch_fn else cursor.rowcount
+            if commit:
+                conn.commit()
+            return result
     except Exception:
-        conn.rollback()
+        if commit:
+            conn.rollback()
         raise
     finally:
         close(conn)
+
+
+def fetch_all(sql, params=()):
+    return _run_query(sql, params, fetch_fn=lambda c: c.fetchall())
+
+
+def fetch_one(sql, params=()):
+    return _run_query(sql, params, fetch_fn=lambda c: c.fetchone())
+
+
+def fetch_value(sql, params=()):
+    return _run_query(sql, params, fetch_fn=lambda c: c.fetchone(), commit=True)
+
+
+def execute(sql, params=()):
+    return _run_query(sql, params, commit=True)

@@ -2,26 +2,39 @@ from app.db import execute, fetch_all, fetch_one, fetch_value
 from app.errors.exceptions import NotFoundError, ValidationError
 from app.models.book import Libro
 
+_QUERY_AUTORES_BY_LIBRO = """SELECT a.id, a.nombre, a.apellido
+    FROM libros_autores la
+    JOIN autores a ON a.id = la.autor_id
+    WHERE la.libro_id = %s"""
+
+_QUERY_LIBRO_BY_ID = """SELECT l.*, c.nombre AS categoria_nombre
+    FROM libros l
+    JOIN categorias c ON c.id = l.categoria_id
+    WHERE l.id = %s"""
+
+_QUERY_LIBROS_LIST = """SELECT l.*, c.nombre AS categoria_nombre
+    FROM libros l
+    JOIN categorias c ON c.id = l.categoria_id
+    WHERE %s IS NULL OR LOWER(l.titulo) LIKE LOWER(%s)
+    ORDER BY l.id"""
+
+_UPDATE_LIBRO_STATIC = """UPDATE libros
+    SET titulo = COALESCE(%s, titulo),
+        isbn = CASE WHEN %s THEN %s ELSE isbn END,
+        descripcion = CASE WHEN %s THEN %s ELSE descripcion END,
+        anio_publicacion = CASE WHEN %s THEN %s ELSE anio_publicacion END,
+        cantidad = COALESCE(%s, cantidad),
+        categoria_id = COALESCE(%s, categoria_id)
+    WHERE id = %s"""
+
 
 def _fetch_autores(libro_id):
-    rows = fetch_all(
-        """SELECT a.id, a.nombre, a.apellido
-           FROM libros_autores la
-           JOIN autores a ON a.id = la.autor_id
-           WHERE la.libro_id = %s""",
-        (libro_id,),
-    )
+    rows = fetch_all(_QUERY_AUTORES_BY_LIBRO, (libro_id,))
     return [dict(row) for row in rows]
 
 
 def _get_libro_row(libro_id):
-    return fetch_one(
-        """SELECT l.*, c.nombre AS categoria_nombre
-           FROM libros l
-           JOIN categorias c ON c.id = l.categoria_id
-           WHERE l.id = %s""",
-        (libro_id,),
-    )
+    return fetch_one(_QUERY_LIBRO_BY_ID, (libro_id,))
 
 
 def _serialize_libro(row):
@@ -55,20 +68,8 @@ def _add_autores(libro_id, autores):
 
 def list_books(search=None):
     parameter = f"%{search}%" if search else None
-    rows = fetch_all(
-        """SELECT l.*, c.nombre AS categoria_nombre
-           FROM libros l
-           JOIN categorias c ON c.id = l.categoria_id
-           WHERE %s IS NULL OR LOWER(l.titulo) LIKE LOWER(%s)
-           ORDER BY l.id""",
-        (parameter, parameter),
-    )
-    result = []
-    for row in rows:
-        libro = Libro.from_row(row)
-        libro.autores = _fetch_autores(libro.id)
-        result.append(libro.to_dict())
-    return result
+    rows = fetch_all(_QUERY_LIBROS_LIST, (parameter, parameter))
+    return [_serialize_libro(row) for row in rows]
 
 
 def get_book(book_id):
@@ -100,24 +101,39 @@ def create_book(data):
     return get_book(row["id"])
 
 
+def _update_book_fields(book_id, data):
+    fields = ("titulo", "isbn", "descripcion", "anio_publicacion", "cantidad", "categoria_id")
+    if any(k in data for k in fields):
+        execute(
+            _UPDATE_LIBRO_STATIC,
+            (
+                data.get("titulo"),
+                "isbn" in data,
+                data.get("isbn"),
+                "descripcion" in data,
+                data.get("descripcion"),
+                "anio_publicacion" in data,
+                data.get("anio_publicacion"),
+                data.get("cantidad"),
+                data.get("categoria_id"),
+                book_id,
+            ),
+        )
+
+
+def _update_book_autores(book_id, autores):
+    execute("DELETE FROM libros_autores WHERE libro_id = %s", (book_id,))
+    _ensure_autores(autores)
+    _add_autores(book_id, autores)
+
+
 def update_book(book_id, data):
     if _get_libro_row(book_id) is None:
         raise NotFoundError("Libro")
 
-    sets = []
-    params = []
-    for field in ("titulo", "isbn", "descripcion", "anio_publicacion", "cantidad", "categoria_id"):
-        if field in data:
-            sets.append(f"{field} = %s")
-            params.append(data[field])
-    if sets:
-        params.append(book_id)
-        execute(f"UPDATE libros SET {', '.join(sets)} WHERE id = %s", params)
-
+    _update_book_fields(book_id, data)
     if "autores" in data:
-        execute("DELETE FROM libros_autores WHERE libro_id = %s", (book_id,))
-        _ensure_autores(data["autores"])
-        _add_autores(book_id, data["autores"])
+        _update_book_autores(book_id, data["autores"])
 
     return get_book(book_id)
 

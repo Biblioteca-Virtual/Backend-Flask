@@ -5,24 +5,25 @@
 | Método | Endpoint | Auth | Función |
 | :--- | :--- | :---: | :--- |
 | `GET` | `/health` | ❌ | Estado del servidor |
-| `POST` | `/auth/register` | ❌ | Registrar usuario |
-| `POST` | `/auth/login` | ❌ | Iniciar sesión |
-| `GET` | `/books` | ✅ | Listar libros |
-| `GET` | `/books/{id}` | ✅ | Obtener libro |
-| `POST` | `/books` | ✅ | Crear libro |
-| `PUT` | `/books/{id}` | ✅ | Editar libro |
-| `DELETE` | `/books/{id}` | ✅ | Eliminar libro |
-| `GET` | `/readings` | ✅ | Listar lecturas |
-| `GET` | `/readings/{id}` | ✅ | Obtener lectura |
-| `POST` | `/readings` | ✅ | Comenzar lectura |
-| `PUT` | `/readings/{id}` | ✅ | Actualizar lectura |
-| `DELETE` | `/readings/{id}` | ✅ | Eliminar lectura |
-| `GET` | `/reviews` | ✅ | Listar reseñas |
-| `GET` | `/reviews/{id}` | ✅ | Obtener reseña |
-| `POST` | `/reviews` | ✅ | Crear reseña |
-| `PUT` | `/reviews/{id}` | ✅ | Editar reseña |
-| `DELETE` | `/reviews/{id}` | ✅ | Eliminar reseña |
-| `POST` | `/roulette/spin` | ✅ | Seleccionar y registrar lectura |
+| `POST` | `/api/auth/register` | ❌ | Registrar usuario |
+| `POST` | `/api/auth/login` | ❌ | Iniciar sesión |
+| `GET` | `/api/auth/me` | ✅ | Obtener el perfil autenticado |
+| `GET` | `/api/books/` | ✅ | Listar libros |
+| `GET` | `/api/books/{id}` | ✅ | Obtener libro |
+| `POST` | `/api/books/` | ✅ | Crear libro |
+| `PUT` | `/api/books/{id}` | ✅ | Editar libro |
+| `DELETE` | `/api/books/{id}` | ✅ | Eliminar libro |
+| `GET` | `/api/readings/` | ✅ | Listar lecturas |
+| `GET` | `/api/readings/{id}` | ✅ | Obtener lectura |
+| `POST` | `/api/readings/` | ✅ | Comenzar lectura |
+| `PUT` | `/api/readings/{id}` | ✅ | Actualizar lectura |
+| `DELETE` | `/api/readings/{id}` | ✅ | Eliminar lectura |
+| `GET` | `/api/reviews/` | ✅ | Listar reseñas |
+| `GET` | `/api/reviews/{id}` | ✅ | Obtener reseña |
+| `POST` | `/api/reviews/` | ✅ | Crear reseña |
+| `PUT` | `/api/reviews/{id}` | ✅ | Editar reseña |
+| `DELETE` | `/api/reviews/{id}` | ✅ | Eliminar reseña |
+| `POST` | `/api/roulette/spin` | ✅ | Seleccionar y registrar lectura |
 
 ---
 ## Gestión de lecturas

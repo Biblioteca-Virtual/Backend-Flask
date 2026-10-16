@@ -1,18 +1,9 @@
-import unittest
 from unittest.mock import patch
 
-from app import create_app
-from app.security import create_token
+from tests.helpers import BaseRouteTestCase
 
 
-class RouletteRoutesTest(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app()
-        self.app.config.update(TESTING=True)
-        with self.app.app_context():
-            self.token = create_token(42)
-        self.client = self.app.test_client()
-        self.headers = {"Authorization": f"Bearer {self.token}"}
+class RouletteRoutesTest(BaseRouteTestCase):
 
     def test_spin_uses_authenticated_user(self):
         reading = {
@@ -36,13 +27,7 @@ class RouletteRoutesTest(unittest.TestCase):
         self.assertEqual(response.get_json()["data"], reading)
 
     def test_spin_requires_authentication(self):
-        response = self.client.post("/api/roulette/spin")
-
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.get_json()["error"],
-            "Se requiere token de autenticación",
-        )
+        self.assert_auth_required("/api/roulette/spin", method="post")
 
 
 if __name__ == "__main__":

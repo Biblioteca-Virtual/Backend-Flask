@@ -3,32 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from app.errors.exceptions import ConflictError, NotFoundError, ValidationError
 from app.services import reading_service
-
-
-def _row(**overrides):
-    row = {
-        "id": 1,
-        "usuario_id": 7,
-        "libro_id": 3,
-        "fecha_prestamo": "2026-09-25T10:00:00",
-        "fecha_devolucion": None,
-        "fecha_actualizacion": "2026-09-25T10:00:00",
-        "estado": "activo",
-        "progreso": 40,
-        "libro_cantidad": 2,
-        "libro_titulo": "Cien años de soledad",
-        "usuario_nombre": "Ada",
-        "usuario_apellido": "Lovelace",
-    }
-    row.update(overrides)
-    return row
-
-
-def _transaction(cursor):
-    context = MagicMock()
-    context.__enter__.return_value = cursor
-    context.__exit__.return_value = False
-    return context
+from tests.helpers import make_reading_row as _row, mock_transaction as _transaction
 
 
 class ReadingServiceTest(unittest.TestCase):
@@ -86,27 +61,24 @@ class ReadingServiceTest(unittest.TestCase):
 
         self.assertEqual(cursor.execute.call_count, 2)
 
+    def _mock_tx(self, cursor):
+        return patch.object(reading_service, "transaction", return_value=_transaction(cursor))
+
+    def _mock_reading_update(self, cursor, current, result_row=None):
+        patches = [
+            self._mock_tx(cursor),
+            patch.object(reading_service, "_get_reading_row_for_update", return_value=current),
+        ]
+        if result_row is not None:
+            patches.append(patch.object(reading_service, "_get_reading_row", return_value=result_row))
+        return patches
+
     def test_update_progress_preserves_active_state(self):
         cursor = MagicMock()
         current = _row()
         updated = _row(progreso=75)
-        with (
-            patch.object(
-                reading_service,
-                "transaction",
-                return_value=_transaction(cursor),
-            ),
-            patch.object(
-                reading_service,
-                "_get_reading_row_for_update",
-                return_value=current,
-            ),
-            patch.object(
-                reading_service,
-                "_get_reading_row",
-                return_value=updated,
-            ),
-        ):
+        p1, p2, p3 = self._mock_reading_update(cursor, current, updated)
+        with p1, p2, p3:
             result = reading_service.update_reading(
                 1,
                 {"progreso": 75},
@@ -127,23 +99,8 @@ class ReadingServiceTest(unittest.TestCase):
             fecha_devolucion="2026-09-26T10:00:00",
             progreso=100,
         )
-        with (
-            patch.object(
-                reading_service,
-                "transaction",
-                return_value=_transaction(cursor),
-            ),
-            patch.object(
-                reading_service,
-                "_get_reading_row_for_update",
-                return_value=current,
-            ),
-            patch.object(
-                reading_service,
-                "_get_reading_row",
-                return_value=returned,
-            ),
-        ):
+        p1, p2, p3 = self._mock_reading_update(cursor, current, returned)
+        with p1, p2, p3:
             result = reading_service.update_reading(
                 1,
                 {"estado": "devuelto"},
@@ -166,19 +123,8 @@ class ReadingServiceTest(unittest.TestCase):
             fecha_devolucion="2026-09-26T10:00:00",
             libro_cantidad=1,
         )
-        with (
-            patch.object(
-                reading_service,
-                "transaction",
-                return_value=_transaction(cursor),
-            ),
-            patch.object(
-                reading_service,
-                "_get_reading_row_for_update",
-                return_value=current,
-            ),
-            self.assertRaises(ConflictError),
-        ):
+        p1, p2 = self._mock_reading_update(cursor, current)
+        with p1, p2, self.assertRaises(ConflictError):
             reading_service.update_reading(
                 1,
                 {"estado": "activo"},
@@ -190,19 +136,8 @@ class ReadingServiceTest(unittest.TestCase):
 
     def test_update_rejects_invalid_progress(self):
         cursor = MagicMock()
-        with (
-            patch.object(
-                reading_service,
-                "transaction",
-                return_value=_transaction(cursor),
-            ),
-            patch.object(
-                reading_service,
-                "_get_reading_row_for_update",
-                return_value=_row(),
-            ),
-            self.assertRaises(ValidationError),
-        ):
+        p1, p2 = self._mock_reading_update(cursor, _row())
+        with p1, p2, self.assertRaises(ValidationError):
             reading_service.update_reading(
                 1,
                 {"progreso": 101},
