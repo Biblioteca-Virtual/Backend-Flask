@@ -5,22 +5,7 @@ from psycopg2 import errors as pg_errors
 
 from app.errors.exceptions import ConflictError, NotFoundError, ValidationError
 from app.services import review_service
-
-
-def _row(**overrides):
-    row = {
-        "id": 1,
-        "libro_id": 3,
-        "usuario_id": 7,
-        "calificacion": 4,
-        "comentario": "Buen libro",
-        "fecha_creacion": "2026-09-25T10:00:00",
-        "libro_titulo": "Cien años de soledad",
-        "usuario_nombre": "Ada",
-        "usuario_apellido": "Lovelace",
-    }
-    row.update(overrides)
-    return row
+from tests.helpers import make_review_row as _row
 
 
 class ReviewServiceTest(unittest.TestCase):

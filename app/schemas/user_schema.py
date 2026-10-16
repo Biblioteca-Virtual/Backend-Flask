@@ -1,59 +1,58 @@
 import re
 
 from app.errors.exceptions import ValidationError
+from app.schemas.common import check_required_text, ensure_dict
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def validate_register(data):
-    errors = []
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
-
-    nombre = data.get("nombre")
-    apellido = data.get("apellido")
-    email = data.get("email")
-    password = data.get("password")
-
-    if not nombre or not str(nombre).strip():
-        errors.append("nombre es requerido")
-    if not apellido or not str(apellido).strip():
-        errors.append("apellido es requerido")
+def _check_email_format(email, errors):
     if not email or not str(email).strip():
         errors.append("email es requerido")
     elif not EMAIL_RE.match(str(email)):
         errors.append("email no tiene un formato válido")
-    if not password or len(str(password)) < 6:
-        errors.append("password debe tener al menos 6 caracteres")
+
+
+def _check_password_length(password, errors, min_len=6):
+    if not password:
+        errors.append("password es requerido")
+    elif len(str(password)) < min_len:
+        errors.append(f"password debe tener al menos {min_len} caracteres")
+
+
+def validate_register(data):
+    ensure_dict(data)
+    errors = []
+
+    nombre = check_required_text(data, "nombre", errors)
+    apellido = check_required_text(data, "apellido", errors)
+    _check_email_format(data.get("email"), errors)
+    _check_password_length(data.get("password"), errors, min_len=6)
 
     if errors:
         raise ValidationError(errors)
 
     return {
-        "nombre": str(nombre).strip(),
-        "apellido": str(apellido).strip(),
-        "email": str(email).strip().lower(),
-        "password": str(password),
+        "nombre": nombre,
+        "apellido": apellido,
+        "email": str(data["email"]).strip().lower(),
+        "password": str(data["password"]),
     }
 
 
 def validate_login(data):
+    ensure_dict(data)
     errors = []
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
 
-    email = data.get("email")
-    password = data.get("password")
-
-    if not email:
+    if not data.get("email"):
         errors.append("email es requerido")
-    if not password:
+    if not data.get("password"):
         errors.append("password es requerido")
 
     if errors:
         raise ValidationError(errors)
 
     return {
-        "email": str(email).strip().lower(),
-        "password": str(password),
+        "email": str(data["email"]).strip().lower(),
+        "password": str(data["password"]),
     }

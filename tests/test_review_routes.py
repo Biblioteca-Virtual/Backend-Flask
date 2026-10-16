@@ -1,18 +1,9 @@
-import unittest
 from unittest.mock import patch
 
-from app import create_app
-from app.security import create_token
+from tests.helpers import BaseRouteTestCase
 
 
-class ReviewRoutesTest(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app()
-        self.app.config.update(TESTING=True)
-        with self.app.app_context():
-            self.token = create_token(42)
-        self.client = self.app.test_client()
-        self.headers = {"Authorization": f"Bearer {self.token}"}
+class ReviewRoutesTest(BaseRouteTestCase):
 
     def test_list_reviews(self):
         with patch(
@@ -97,9 +88,7 @@ class ReviewRoutesTest(unittest.TestCase):
             ("delete", "/api/reviews/1"),
         ):
             with self.subTest(method=method, path=path):
-                response = getattr(self.client, method)(path)
-
-                self.assertEqual(response.status_code, 401)
+                self.assert_auth_required(path, method=method)
 
 
 if __name__ == "__main__":

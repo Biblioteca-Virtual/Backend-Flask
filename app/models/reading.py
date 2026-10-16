@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.models.common import format_user_name
+
 
 @dataclass
 class Prestamo:
@@ -19,11 +21,7 @@ class Prestamo:
         return {
             "id": self.id,
             "usuario_id": self.usuario_id,
-            "usuario": (
-                f"{self.usuario_nombre} {self.usuario_apellido}".strip()
-                if self.usuario_nombre
-                else None
-            ),
+            "usuario": format_user_name(self.usuario_nombre, self.usuario_apellido),
             "libro_id": self.libro_id,
             "libro_titulo": self.libro_titulo,
             "fecha_prestamo": self.fecha_prestamo,

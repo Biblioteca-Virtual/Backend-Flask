@@ -1,18 +1,9 @@
-import unittest
 from unittest.mock import patch
 
-from app import create_app
-from app.security import create_token
+from tests.helpers import BaseRouteTestCase
 
 
-class ReadingRoutesTest(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app()
-        self.app.config.update(TESTING=True)
-        with self.app.app_context():
-            self.token = create_token(42)
-        self.client = self.app.test_client()
-        self.headers = {"Authorization": f"Bearer {self.token}"}
+class ReadingRoutesTest(BaseRouteTestCase):
 
     def test_list_uses_authenticated_user_and_filters(self):
         with patch(
@@ -74,13 +65,7 @@ class ReadingRoutesTest(unittest.TestCase):
         self.assertEqual(response.get_json()["error"], "Datos inválidos")
 
     def test_routes_require_authentication(self):
-        response = self.client.get("/api/readings/")
-
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(
-            response.get_json()["error"],
-            "Se requiere token de autenticación",
-        )
+        self.assert_auth_required("/api/readings/")
 
 
 if __name__ == "__main__":

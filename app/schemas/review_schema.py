@@ -1,10 +1,12 @@
 from app.errors.exceptions import ValidationError
+from app.schemas.common import (
+    check_allowed_fields,
+    check_id_field,
+    ensure_dict,
+    is_integer,
+)
 
-MAX_INTEGER = 2_147_483_647
-
-
-def _is_integer(value):
-    return isinstance(value, int) and not isinstance(value, bool)
+REVIEW_UPDATE_FIELDS = {"calificacion", "comentario"}
 
 
 def _validate_comment(comentario, errors):
@@ -13,20 +15,16 @@ def _validate_comment(comentario, errors):
 
 
 def _validate_rating(calificacion, errors):
-    if not _is_integer(calificacion) or not 1 <= calificacion <= 5:
+    if not is_integer(calificacion) or not 1 <= calificacion <= 5:
         errors.append("calificacion debe ser un entero entre 1 y 5")
 
 
 def validate_create_review(data):
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
-
+    ensure_dict(data)
     errors = []
+
     libro_id = data.get("libro_id")
-    if libro_id is None:
-        errors.append("libro_id es requerido")
-    elif not _is_integer(libro_id) or not 1 <= libro_id <= MAX_INTEGER:
-        errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
+    check_id_field(libro_id, "libro_id", errors, required=True)
 
     calificacion = data.get("calificacion")
     if calificacion is None:
@@ -47,14 +45,12 @@ def validate_create_review(data):
 
 
 def validate_update_review(data):
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
-
-    allowed = {"calificacion", "comentario"}
-    if not allowed.intersection(data):
-        raise ValidationError(
-            ["Debe indicar al menos un campo a actualizar entre calificacion, comentario"]
-        )
+    ensure_dict(data)
+    check_allowed_fields(
+        data,
+        REVIEW_UPDATE_FIELDS,
+        "Debe indicar al menos un campo a actualizar entre calificacion, comentario",
+    )
 
     errors = []
     if "calificacion" in data:
@@ -65,9 +61,4 @@ def validate_update_review(data):
     if errors:
         raise ValidationError(errors)
 
-    result = {}
-    if "calificacion" in data:
-        result["calificacion"] = data["calificacion"]
-    if "comentario" in data:
-        result["comentario"] = data["comentario"]
-    return result
+    return {k: data[k] for k in REVIEW_UPDATE_FIELDS if k in data}

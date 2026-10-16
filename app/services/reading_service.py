@@ -2,20 +2,28 @@ from app.db import fetch_all, fetch_one, fetch_value, transaction
 from app.errors.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.reading import Prestamo
 
-_READING_SELECT = """SELECT p.*, l.titulo AS libro_titulo,
-                            u.nombre AS usuario_nombre,
-                            u.apellido AS usuario_apellido
-                     FROM prestamos p
-                     JOIN libros l ON l.id = p.libro_id
-                     JOIN usuarios u ON u.id = p.usuario_id"""
+_QUERY_READING_BY_ID = """SELECT p.*, l.titulo AS libro_titulo,
+                                  u.nombre AS usuario_nombre,
+                                  u.apellido AS usuario_apellido
+                           FROM prestamos p
+                           JOIN libros l ON l.id = p.libro_id
+                           JOIN usuarios u ON u.id = p.usuario_id
+                           WHERE p.id = %s AND p.usuario_id = %s"""
+
+_QUERY_READINGS_LIST = """SELECT p.*, l.titulo AS libro_titulo,
+                                 u.nombre AS usuario_nombre,
+                                 u.apellido AS usuario_apellido
+                          FROM prestamos p
+                          JOIN libros l ON l.id = p.libro_id
+                          JOIN usuarios u ON u.id = p.usuario_id
+                          WHERE p.usuario_id = %s
+                            AND (%s IS NULL OR p.estado = %s)
+                            AND (%s IS NULL OR p.libro_id = %s)
+                          ORDER BY p.fecha_actualizacion DESC, p.id DESC"""
 
 
 def _get_reading_row(reading_id, usuario_id):
-    return fetch_one(
-        f"""{_READING_SELECT}
-            WHERE p.id = %s AND p.usuario_id = %s""",
-        (reading_id, usuario_id),
-    )
+    return fetch_one(_QUERY_READING_BY_ID, (reading_id, usuario_id))
 
 
 def _get_reading_row_for_update(cursor, reading_id, usuario_id):
@@ -60,11 +68,7 @@ def _serialize_reading(row):
 
 def list_readings(usuario_id, estado=None, libro_id=None):
     rows = fetch_all(
-        f"""{_READING_SELECT}
-            WHERE p.usuario_id = %s
-              AND (%s IS NULL OR p.estado = %s)
-              AND (%s IS NULL OR p.libro_id = %s)
-            ORDER BY p.fecha_actualizacion DESC, p.id DESC""",
+        _QUERY_READINGS_LIST,
         (usuario_id, estado, estado, libro_id, libro_id),
     )
     return [_serialize_reading(row) for row in rows]
@@ -77,30 +81,45 @@ def get_reading(reading_id, usuario_id):
     return _serialize_reading(row)
 
 
+def _check_valid_progress(progress):
+    if (
+        isinstance(progress, bool)
+        or not isinstance(progress, int)
+        or not 0 <= progress <= 100
+    ):
+        raise ValidationError(["progreso debe ser un entero entre 0 y 100"])
+
+
+def _check_valid_state(estado):
+    if not isinstance(estado, str) or estado not in {"activo", "devuelto"}:
+        raise ValidationError(
+            ["estado debe ser uno de los siguientes valores: activo, devuelto"]
+        )
+
+
+def _lock_book_and_ensure_copies(cursor, book_id):
+    cursor.execute(
+        """SELECT id, cantidad
+           FROM libros
+           WHERE id = %s
+           FOR UPDATE""",
+        (book_id,),
+    )
+    book = cursor.fetchone()
+    if book is None:
+        raise NotFoundError("Libro")
+
+    active = _active_count(cursor, book_id)
+    if active >= book["cantidad"]:
+        raise ConflictError("No hay copias disponibles de este libro")
+
+
 def create_reading(data, usuario_id):
     with transaction() as cursor:
-        cursor.execute(
-            """SELECT id, cantidad
-               FROM libros
-               WHERE id = %s
-               FOR UPDATE""",
-            (data["libro_id"],),
-        )
-        book = cursor.fetchone()
-        if book is None:
-            raise NotFoundError("Libro")
-
-        active = _active_count(cursor, data["libro_id"])
-        if active >= book["cantidad"]:
-            raise ConflictError("No hay copias disponibles de este libro")
+        _lock_book_and_ensure_copies(cursor, data["libro_id"])
 
         progress = data.get("progreso", 0)
-        if (
-            isinstance(progress, bool)
-            or not isinstance(progress, int)
-            or not 0 <= progress <= 100
-        ):
-            raise ValidationError(["progreso debe ser un entero entre 0 y 100"])
+        _check_valid_progress(progress)
 
         cursor.execute(
             """INSERT INTO prestamos (usuario_id, libro_id, progreso)
@@ -113,53 +132,48 @@ def create_reading(data, usuario_id):
     return get_reading(reading_id, usuario_id)
 
 
+def _check_reactivation_available(cursor, current, target_state, reading_id):
+    if current["estado"] == "devuelto" and target_state == "activo":
+        active = _active_count(
+            cursor,
+            current["libro_id"],
+            excluded_reading_id=reading_id,
+        )
+        if active >= current["libro_cantidad"]:
+            raise ConflictError("No hay copias disponibles de este libro")
+
+
+_UPDATE_ACTIVE_READING = """UPDATE prestamos
+    SET progreso = %s,
+        estado = %s,
+        fecha_devolucion = NULL,
+        fecha_actualizacion = CURRENT_TIMESTAMP
+    WHERE id = %s AND usuario_id = %s"""
+
+_UPDATE_RETURNED_READING = """UPDATE prestamos
+    SET progreso = %s,
+        estado = %s,
+        fecha_devolucion = COALESCE(fecha_devolucion, CURRENT_TIMESTAMP),
+        fecha_actualizacion = CURRENT_TIMESTAMP
+    WHERE id = %s AND usuario_id = %s"""
+
+
 def update_reading(reading_id, data, usuario_id):
     with transaction() as cursor:
-        current = _get_reading_row_for_update(
-            cursor,
-            reading_id,
-            usuario_id,
-        )
+        current = _get_reading_row_for_update(cursor, reading_id, usuario_id)
         if current is None:
             raise NotFoundError("Lectura")
 
         progress = data.get("progreso", current["progreso"])
-        if (
-            isinstance(progress, bool)
-            or not isinstance(progress, int)
-            or not 0 <= progress <= 100
-        ):
-            raise ValidationError(["progreso debe ser un entero entre 0 y 100"])
+        _check_valid_progress(progress)
 
         estado = data.get("estado", current["estado"])
-        if not isinstance(estado, str) or estado not in {"activo", "devuelto"}:
-            raise ValidationError(
-                ["estado debe ser uno de los siguientes valores: activo, devuelto"]
-            )
+        _check_valid_state(estado)
 
-        if current["estado"] == "devuelto" and estado == "activo":
-            active = _active_count(
-                cursor,
-                current["libro_id"],
-                excluded_reading_id=reading_id,
-            )
-            if active >= current["libro_cantidad"]:
-                raise ConflictError("No hay copias disponibles de este libro")
+        _check_reactivation_available(cursor, current, estado, reading_id)
 
-        fecha_devolucion = (
-            "NULL"
-            if estado == "activo"
-            else "COALESCE(fecha_devolucion, CURRENT_TIMESTAMP)"
-        )
-        cursor.execute(
-            f"""UPDATE prestamos
-                SET progreso = %s,
-                    estado = %s,
-                    fecha_devolucion = {fecha_devolucion},
-                    fecha_actualizacion = CURRENT_TIMESTAMP
-                WHERE id = %s AND usuario_id = %s""",
-            (progress, estado, reading_id, usuario_id),
-        )
+        sql = _UPDATE_ACTIVE_READING if estado == "activo" else _UPDATE_RETURNED_READING
+        cursor.execute(sql, (progress, estado, reading_id, usuario_id))
 
     return get_reading(reading_id, usuario_id)
 

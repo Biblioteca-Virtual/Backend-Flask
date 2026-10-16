@@ -1,11 +1,14 @@
 from app.errors.exceptions import ValidationError
+from app.schemas.common import (
+    MAX_INTEGER,
+    check_allowed_fields,
+    check_id_field,
+    ensure_dict,
+    is_integer,
+)
 
 ESTADOS = {"activo", "devuelto"}
-MAX_INTEGER = 2_147_483_647
-
-
-def _is_integer(value):
-    return isinstance(value, int) and not isinstance(value, bool)
+READING_UPDATE_FIELDS = {"progreso", "estado"}
 
 
 def _is_valid_state(value):
@@ -13,18 +16,16 @@ def _is_valid_state(value):
 
 
 def _validate_progress(progress, errors):
-    if not _is_integer(progress) or not 0 <= progress <= 100:
+    if not is_integer(progress) or not 0 <= progress <= 100:
         errors.append("progreso debe ser un entero entre 0 y 100")
 
 
 def validate_create_reading(data):
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
-
+    ensure_dict(data)
     errors = []
+
     libro_id = data.get("libro_id")
-    if not _is_integer(libro_id) or libro_id <= 0 or libro_id > MAX_INTEGER:
-        errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
+    check_id_field(libro_id, "libro_id", errors, required=True)
 
     progress = data.get("progreso", 0)
     _validate_progress(progress, errors)
@@ -36,15 +37,12 @@ def validate_create_reading(data):
 
 
 def validate_update_reading(data):
-    if not isinstance(data, dict):
-        raise ValidationError(["El cuerpo debe ser un objeto JSON"])
-
-    allowed = {"progreso", "estado"}
-    provided = allowed.intersection(data)
-    if not provided:
-        raise ValidationError(
-            ["Debe indicar al menos un campo a actualizar entre progreso, estado"]
-        )
+    ensure_dict(data)
+    check_allowed_fields(
+        data,
+        READING_UPDATE_FIELDS,
+        "Debe indicar al menos un campo a actualizar entre progreso, estado",
+    )
 
     errors = []
     if "progreso" in data:
@@ -58,12 +56,24 @@ def validate_update_reading(data):
     if errors:
         raise ValidationError(errors)
 
-    result = {}
-    if "progreso" in data:
-        result["progreso"] = data["progreso"]
-    if "estado" in data:
-        result["estado"] = data["estado"]
-    return result
+    return {k: data[k] for k in READING_UPDATE_FIELDS if k in data}
+
+
+def _parse_filter_libro_id(raw_id, errors):
+    if raw_id is None:
+        return None
+    if isinstance(raw_id, (bool, float)):
+        errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
+        return None
+    try:
+        val = int(raw_id)
+        if not 1 <= val <= MAX_INTEGER:
+            errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
+            return None
+        return val
+    except (TypeError, ValueError):
+        errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
+        return None
 
 
 def validate_reading_filters(filters):
@@ -75,21 +85,7 @@ def validate_reading_filters(filters):
             f"{', '.join(sorted(ESTADOS))}"
         )
 
-    libro_id = None
-    raw_libro_id = filters.get("libro_id")
-    if raw_libro_id is not None:
-        if isinstance(raw_libro_id, (bool, float)):
-            errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
-        else:
-            try:
-                libro_id = int(raw_libro_id)
-            except (TypeError, ValueError):
-                errors.append("libro_id debe ser un número entero entre 1 y 2147483647")
-            else:
-                if not 1 <= libro_id <= MAX_INTEGER:
-                    errors.append(
-                        "libro_id debe ser un número entero entre 1 y 2147483647"
-                    )
+    libro_id = _parse_filter_libro_id(filters.get("libro_id"), errors)
 
     if errors:
         raise ValidationError(errors)

@@ -6,6 +6,14 @@ from app.services import roulette_service
 
 
 class RouletteServiceTest(unittest.TestCase):
+    def _mock_book_id(self, val):
+        kw = {"side_effect": val} if isinstance(val, (list, tuple)) else {"return_value": val}
+        return patch.object(roulette_service, "_select_available_book_id", **kw)
+
+    def _mock_create_reading(self, val):
+        kw = {"side_effect": val} if isinstance(val, (list, tuple)) else {"return_value": val}
+        return patch.object(roulette_service, "create_reading", **kw)
+
     def test_selects_only_books_with_available_copies(self):
         with patch.object(
             roulette_service,
@@ -28,18 +36,7 @@ class RouletteServiceTest(unittest.TestCase):
             "estado": "activo",
             "progreso": 0,
         }
-        with (
-            patch.object(
-                roulette_service,
-                "_select_available_book_id",
-                return_value=3,
-            ),
-            patch.object(
-                roulette_service,
-                "create_reading",
-                return_value=reading,
-            ) as create_reading,
-        ):
+        with self._mock_book_id(3), self._mock_create_reading(reading) as create_reading:
             result = roulette_service.spin(usuario_id=7)
 
         self.assertEqual(result, reading)
@@ -50,12 +47,8 @@ class RouletteServiceTest(unittest.TestCase):
 
     def test_spin_returns_conflict_when_no_books_are_available(self):
         with (
-            patch.object(
-                roulette_service,
-                "_select_available_book_id",
-                return_value=None,
-            ),
-            patch.object(roulette_service, "create_reading") as create_reading,
+            self._mock_book_id(None),
+            self._mock_create_reading(None) as create_reading,
             self.assertRaises(ConflictError),
         ):
             roulette_service.spin(usuario_id=7)
@@ -65,16 +58,8 @@ class RouletteServiceTest(unittest.TestCase):
     def test_spin_retries_when_selected_copy_was_taken(self):
         reading = {"id": 10, "libro_id": 5, "usuario_id": 7}
         with (
-            patch.object(
-                roulette_service,
-                "_select_available_book_id",
-                side_effect=[3, 5],
-            ),
-            patch.object(
-                roulette_service,
-                "create_reading",
-                side_effect=[ConflictError("Sin copias"), reading],
-            ) as create_reading,
+            self._mock_book_id([3, 5]),
+            self._mock_create_reading([ConflictError("Sin copias"), reading]) as create_reading,
         ):
             result = roulette_service.spin(usuario_id=7)
 
@@ -88,16 +73,8 @@ class RouletteServiceTest(unittest.TestCase):
     def test_spin_retries_when_book_was_removed(self):
         reading = {"id": 11, "libro_id": 5, "usuario_id": 7}
         with (
-            patch.object(
-                roulette_service,
-                "_select_available_book_id",
-                side_effect=[3, 5],
-            ),
-            patch.object(
-                roulette_service,
-                "create_reading",
-                side_effect=[NotFoundError("Libro"), reading],
-            ),
+            self._mock_book_id([3, 5]),
+            self._mock_create_reading([NotFoundError("Libro"), reading]),
         ):
             result = roulette_service.spin(usuario_id=7)
 
@@ -105,16 +82,8 @@ class RouletteServiceTest(unittest.TestCase):
 
     def test_spin_stops_after_maximum_attempts(self):
         with (
-            patch.object(
-                roulette_service,
-                "_select_available_book_id",
-                return_value=3,
-            ),
-            patch.object(
-                roulette_service,
-                "create_reading",
-                side_effect=ConflictError("Sin copias"),
-            ) as create_reading,
+            self._mock_book_id(3),
+            self._mock_create_reading(ConflictError("Sin copias")) as create_reading,
             patch.object(roulette_service, "MAX_SPIN_ATTEMPTS", 2),
             self.assertRaises(ConflictError),
         ):

@@ -5,10 +5,7 @@ from app.config import Config
 from app.errors.handlers import register_error_handlers
 
 
-def create_app():
-    app = Flask(__name__)
-    app.config.from_object(Config)
-
+def _init_cors(app):
     CORS(
         app,
         resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}},
@@ -18,8 +15,8 @@ def create_app():
         max_age=600,
     )
 
-    register_error_handlers(app)
 
+def _register_blueprints(app):
     from app.routes.auth import auth_bp
     from app.routes.books import books_bp
     from app.routes.docs import docs_bp
@@ -30,10 +27,22 @@ def create_app():
 
     app.register_blueprint(docs_bp)
     app.register_blueprint(health_bp)
-    app.register_blueprint(auth_bp, url_prefix="/api/auth")
-    app.register_blueprint(books_bp, url_prefix="/api/books")
-    app.register_blueprint(readings_bp, url_prefix="/api/readings")
-    app.register_blueprint(reviews_bp, url_prefix="/api/reviews")
-    app.register_blueprint(roulette_bp, url_prefix="/api/roulette")
 
+    api_routes = [
+        (auth_bp, "/api/auth"),
+        (books_bp, "/api/books"),
+        (readings_bp, "/api/readings"),
+        (reviews_bp, "/api/reviews"),
+        (roulette_bp, "/api/roulette"),
+    ]
+    for bp, prefix in api_routes:
+        app.register_blueprint(bp, url_prefix=prefix)
+
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    _init_cors(app)
+    register_error_handlers(app)
+    _register_blueprints(app)
     return app
