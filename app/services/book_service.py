@@ -7,14 +7,14 @@ _QUERY_AUTORES_BY_LIBRO = """SELECT a.id, a.nombre, a.apellido
     JOIN autores a ON a.id = la.autor_id
     WHERE la.libro_id = %s"""
 
-_QUERY_LIBRO_BY_ID = """SELECT l.*, c.nombre AS categoria_nombre
+_QUERY_LIBRO_BY_ID = """SELECT l.*, COALESCE(c.nombre, 'General') AS categoria_nombre
     FROM libros l
-    JOIN categorias c ON c.id = l.categoria_id
+    LEFT JOIN categorias c ON c.id = l.categoria_id
     WHERE l.id = %s"""
 
-_QUERY_LIBROS_LIST = """SELECT l.*, c.nombre AS categoria_nombre
+_QUERY_LIBROS_LIST = """SELECT l.*, COALESCE(c.nombre, 'General') AS categoria_nombre
     FROM libros l
-    JOIN categorias c ON c.id = l.categoria_id
+    LEFT JOIN categorias c ON c.id = l.categoria_id
     WHERE %s IS NULL OR LOWER(l.titulo) LIKE LOWER(%s)
     ORDER BY l.id"""
 
@@ -24,7 +24,10 @@ _UPDATE_LIBRO_STATIC = """UPDATE libros
         descripcion = CASE WHEN %s THEN %s ELSE descripcion END,
         anio_publicacion = CASE WHEN %s THEN %s ELSE anio_publicacion END,
         cantidad = COALESCE(%s, cantidad),
-        categoria_id = COALESCE(%s, categoria_id)
+        categoria_id = COALESCE(%s, categoria_id),
+        paginas_totales = CASE WHEN %s THEN %s ELSE paginas_totales END,
+        paginas_leidas = CASE WHEN %s THEN %s ELSE paginas_leidas END,
+        imagen_portada = CASE WHEN %s THEN %s ELSE imagen_portada END
     WHERE id = %s"""
 
 
@@ -43,9 +46,22 @@ def _serialize_libro(row):
     return libro.to_dict()
 
 
+def list_categories():
+    rows = fetch_all("SELECT id, nombre, descripcion FROM categorias ORDER BY id")
+    return [dict(row) for row in rows]
+
+
 def _ensure_categoria(categoria_id):
-    if fetch_one("SELECT id FROM categorias WHERE id = %s", (categoria_id,)) is None:
-        raise ValidationError(["categoria_id no existe"])
+    if not categoria_id:
+        return 1
+    row = fetch_one("SELECT id FROM categorias WHERE id = %s", (categoria_id,))
+    if row is None:
+        # Si la categoría especificada no existe, intentamos usar o crear la categoría 1 por defecto
+        default_cat = fetch_one("SELECT id FROM categorias WHERE id = 1")
+        if default_cat is None:
+            execute("INSERT INTO categorias (id, nombre, descripcion) VALUES (1, 'General', 'Libros generales') ON CONFLICT DO NOTHING")
+        return 1
+    return categoria_id
 
 
 def _ensure_autores(autores):
@@ -61,7 +77,7 @@ def _ensure_autores(autores):
 def _add_autores(libro_id, autores):
     for autor_id in autores:
         execute(
-            "INSERT INTO libros_autores (libro_id, autor_id) VALUES (%s, %s)",
+            "INSERT INTO libros_autores (libro_id, autor_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
             (libro_id, autor_id),
         )
 
@@ -80,13 +96,14 @@ def get_book(book_id):
 
 
 def create_book(data):
-    _ensure_categoria(data["categoria_id"])
-    _ensure_autores(data["autores"])
+    cat_id = _ensure_categoria(data.get("categoria_id"))
+    _ensure_autores(data.get("autores", []))
 
     row = fetch_value(
         """INSERT INTO libros
-           (titulo, isbn, descripcion, anio_publicacion, cantidad, categoria_id)
-           VALUES (%s, %s, %s, %s, %s, %s)
+           (titulo, isbn, descripcion, anio_publicacion, cantidad, categoria_id,
+            paginas_totales, paginas_leidas, imagen_portada)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
            RETURNING id""",
         (
             data["titulo"],
@@ -94,16 +111,33 @@ def create_book(data):
             data["descripcion"],
             data["anio_publicacion"],
             data["cantidad"],
-            data["categoria_id"],
+            cat_id,
+            data.get("paginas_totales", 0),
+            data.get("paginas_leidas", 0),
+            data.get("imagen_portada"),
         ),
     )
-    _add_autores(row["id"], data["autores"])
+    _add_autores(row["id"], data.get("autores", []))
     return get_book(row["id"])
 
 
 def _update_book_fields(book_id, data):
-    fields = ("titulo", "isbn", "descripcion", "anio_publicacion", "cantidad", "categoria_id")
+    fields = (
+        "titulo",
+        "isbn",
+        "descripcion",
+        "anio_publicacion",
+        "cantidad",
+        "categoria_id",
+        "paginas_totales",
+        "paginas_leidas",
+        "imagen_portada",
+    )
     if any(k in data for k in fields):
+        cat_id = data.get("categoria_id")
+        if cat_id is not None:
+            cat_id = _ensure_categoria(cat_id)
+
         execute(
             _UPDATE_LIBRO_STATIC,
             (
@@ -115,7 +149,13 @@ def _update_book_fields(book_id, data):
                 "anio_publicacion" in data,
                 data.get("anio_publicacion"),
                 data.get("cantidad"),
-                data.get("categoria_id"),
+                cat_id,
+                "paginas_totales" in data,
+                data.get("paginas_totales"),
+                "paginas_leidas" in data,
+                data.get("paginas_leidas"),
+                "imagen_portada" in data,
+                data.get("imagen_portada"),
                 book_id,
             ),
         )
@@ -134,6 +174,27 @@ def update_book(book_id, data):
     _update_book_fields(book_id, data)
     if "autores" in data:
         _update_book_autores(book_id, data["autores"])
+
+    return get_book(book_id)
+
+
+def update_book_progress(book_id, data):
+    if _get_libro_row(book_id) is None:
+        raise NotFoundError("Libro")
+
+    set_clauses = []
+    params = []
+    if "paginas_totales" in data:
+        set_clauses.append("paginas_totales = %s")
+        params.append(data["paginas_totales"])
+    if "paginas_leidas" in data:
+        set_clauses.append("paginas_leidas = %s")
+        params.append(data["paginas_leidas"])
+
+    if set_clauses:
+        params.append(book_id)
+        sql = f"UPDATE libros SET {', '.join(set_clauses)} WHERE id = %s"
+        execute(sql, tuple(params))
 
     return get_book(book_id)
 
