@@ -19,3 +19,8 @@ class Config:
     DB_NAME = os.getenv("DB_NAME", "biblioteca_db")
     DB_USER = os.getenv("DB_USER", "biblioteca_user")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "biblioteca_password")
+
+    STORAGE_DIR = os.getenv(
+        "STORAGE_DIR",
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "storage")),
+    )

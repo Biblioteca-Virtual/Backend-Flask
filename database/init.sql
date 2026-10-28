@@ -1,12 +1,12 @@
 -- ============================================
--- BIBLIOTECA VIRTUAL
+-- BIBLIOTECA VIRTUAL - ESQUEMA DE BASE DE DATOS
 -- ============================================
 
 -- ============================================
 -- TABLA: categorias
 -- ============================================
 
-CREATE TABLE categorias (
+CREATE TABLE IF NOT EXISTS categorias (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL UNIQUE,
     descripcion TEXT
@@ -17,7 +17,7 @@ CREATE TABLE categorias (
 -- TABLA: autores
 -- ============================================
 
-CREATE TABLE autores (
+CREATE TABLE IF NOT EXISTS autores (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     apellido VARCHAR(100) NOT NULL
@@ -28,7 +28,7 @@ CREATE TABLE autores (
 -- TABLA: usuarios
 -- ============================================
 
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
@@ -40,16 +40,20 @@ CREATE TABLE usuarios (
 
 -- ============================================
 -- TABLA: libros
+-- Incluye páginas totales, leídas y almacenamiento de imagen de portada
 -- ============================================
 
-CREATE TABLE libros (
+CREATE TABLE IF NOT EXISTS libros (
     id SERIAL PRIMARY KEY,
     titulo VARCHAR(255) NOT NULL,
     isbn VARCHAR(20) UNIQUE,
     descripcion TEXT,
     anio_publicacion INTEGER,
     cantidad INTEGER NOT NULL DEFAULT 1,
-    categoria_id INTEGER NOT NULL,
+    categoria_id INTEGER NOT NULL DEFAULT 1,
+    paginas_totales INTEGER NOT NULL DEFAULT 0,
+    paginas_leidas INTEGER NOT NULL DEFAULT 0,
+    imagen_portada VARCHAR(500),
 
     CONSTRAINT fk_libro_categoria
         FOREIGN KEY (categoria_id)
@@ -62,8 +66,20 @@ CREATE TABLE libros (
         ),
 
     CONSTRAINT check_cantidad
-        CHECK (cantidad >= 0)
+        CHECK (cantidad >= 0),
+
+    CONSTRAINT check_paginas_totales
+        CHECK (paginas_totales >= 0),
+
+    CONSTRAINT check_paginas_leidas
+        CHECK (paginas_leidas >= 0)
 );
+
+CREATE INDEX IF NOT EXISTS idx_libros_categoria
+    ON libros(categoria_id);
+
+CREATE INDEX IF NOT EXISTS idx_libros_titulo
+    ON libros(titulo);
 
 
 -- ============================================
@@ -71,7 +87,7 @@ CREATE TABLE libros (
 -- Relación N:M entre libros y autores
 -- ============================================
 
-CREATE TABLE libros_autores (
+CREATE TABLE IF NOT EXISTS libros_autores (
     libro_id INTEGER NOT NULL,
     autor_id INTEGER NOT NULL,
 
@@ -90,54 +106,10 @@ CREATE TABLE libros_autores (
 
 
 -- ============================================
--- TABLA: prestamos
--- La API de lecturas usa este registro para conservar la disponibilidad
--- de copias y el estado de cada lectura.
--- ============================================
-
-CREATE TABLE prestamos (
-    id SERIAL PRIMARY KEY,
-    usuario_id INTEGER NOT NULL,
-    libro_id INTEGER NOT NULL,
-    fecha_prestamo TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    fecha_devolucion TIMESTAMP,
-    fecha_actualizacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    estado VARCHAR(20) NOT NULL DEFAULT 'activo',
-    progreso INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT fk_prestamo_usuario
-        FOREIGN KEY (usuario_id)
-        REFERENCES usuarios(id),
-
-    CONSTRAINT fk_prestamo_libro
-        FOREIGN KEY (libro_id)
-        REFERENCES libros(id),
-
-    CONSTRAINT check_estado_prestamo
-        CHECK (estado IN ('activo', 'devuelto')),
-
-    CONSTRAINT check_progreso_prestamo
-        CHECK (progreso BETWEEN 0 AND 100),
-
-    CONSTRAINT check_fecha_devolucion
-        CHECK (
-            fecha_devolucion IS NULL
-            OR fecha_devolucion >= fecha_prestamo
-        )
-);
-
-CREATE INDEX idx_prestamos_usuario_estado
-    ON prestamos(usuario_id, estado);
-
-CREATE INDEX idx_prestamos_libro_estado
-    ON prestamos(libro_id, estado);
-
-
--- ============================================
 -- TABLA: resenas
 -- ============================================
 
-CREATE TABLE resenas (
+CREATE TABLE IF NOT EXISTS resenas (
     id SERIAL PRIMARY KEY,
     libro_id INTEGER NOT NULL,
     usuario_id INTEGER NOT NULL,
@@ -161,3 +133,57 @@ CREATE TABLE resenas (
     CONSTRAINT uq_resena_libro_usuario
         UNIQUE (libro_id, usuario_id)
 );
+
+
+-- ============================================
+-- DATOS INICIALES: Categorías indispensables para el catálogo
+-- ============================================
+
+INSERT INTO categorias (id, nombre, descripcion) VALUES
+(1, 'General', 'Libros generales, misceláneos y divulgación general'),
+(2, 'Novela', 'Novelas literarias y narrativa clásica o contemporánea'),
+(3, 'Ciencia Ficción', 'Relatos futuristas, distopías y universos paralelos'),
+(4, 'Fantasía', 'Literatura de fantasía épica, magia y mundos imaginarios'),
+(5, 'Historia', 'Acontecimientos históricos, biografías y crónicas'),
+(6, 'Tecnología', 'Desarrollo de software, ciencias de la computación y tecnología'),
+(7, 'Misterio y Suspenso', 'Novela policíaca, intriga y crímenes')
+ON CONFLICT (id) DO UPDATE SET
+    nombre = EXCLUDED.nombre,
+    descripcion = EXCLUDED.descripcion;
+
+-- Ajustar secuencia de categorías
+SELECT setval('categorias_id_seq', COALESCE((SELECT MAX(id) FROM categorias), 1));
+
+
+-- ============================================
+-- DATOS INICIALES: Autores
+-- ============================================
+
+INSERT INTO autores (id, nombre, apellido) VALUES
+(1, 'Gabriel', 'García Márquez'),
+(2, 'Jorge Luis', 'Borges'),
+(3, 'Julio', 'Cortázar'),
+(4, 'Isabel', 'Allende'),
+(5, 'Isaac', 'Asimov')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval('autores_id_seq', COALESCE((SELECT MAX(id) FROM autores), 1));
+
+
+-- ============================================
+-- DATOS INICIALES: Libros de demostración en el catálogo
+-- ============================================
+
+INSERT INTO libros (id, titulo, isbn, descripcion, anio_publicacion, cantidad, categoria_id, paginas_totales, paginas_leidas, imagen_portada) VALUES
+(1, 'Cien años de soledad', '978-0307474728', 'La saga de la familia Buendía en el mítico pueblo de Macondo.', 1967, 3, 2, 471, 180, NULL),
+(2, 'Ficciones', '978-0307950925', 'Colección de cuentos que desafían el tiempo, los espejos y los laberintos.', 1944, 2, 2, 224, 90, NULL),
+(3, 'Fundación', '978-8499890470', 'La caída del Imperio Galáctico y el nacimiento de la psicohistoria.', 1951, 4, 3, 260, 65, NULL)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval('libros_id_seq', COALESCE((SELECT MAX(id) FROM libros), 1));
+
+INSERT INTO libros_autores (libro_id, autor_id) VALUES
+(1, 1),
+(2, 2),
+(3, 5)
+ON CONFLICT DO NOTHING;

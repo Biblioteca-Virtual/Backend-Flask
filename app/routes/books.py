@@ -1,13 +1,19 @@
 from flask import Blueprint, jsonify, request
 
-from app.schemas.book_schema import validate_create_book, validate_update_book
+from app.schemas.book_schema import (
+    validate_create_book,
+    validate_update_book,
+    validate_update_progress,
+)
 from app.security import login_required
 from app.services.book_service import (
     create_book,
     delete_book,
     get_book,
     list_books,
+    list_categories,
     update_book,
+    update_book_progress,
 )
 
 books_bp = Blueprint("books", __name__)
@@ -18,6 +24,12 @@ books_bp = Blueprint("books", __name__)
 def get_books():
     search = request.args.get("q")
     return jsonify({"data": list_books(search=search)}), 200
+
+
+@books_bp.get("/categories")
+@login_required
+def get_categories():
+    return jsonify({"data": list_categories()}), 200
 
 
 @books_bp.get("/<int:book_id>")
@@ -41,6 +53,15 @@ def put_book(book_id):
     data = request.get_json(silent=True)
     validated = validate_update_book(data)
     libro = update_book(book_id, validated)
+    return jsonify({"data": libro}), 200
+
+
+@books_bp.patch("/<int:book_id>/progress")
+@login_required
+def patch_book_progress(book_id):
+    data = request.get_json(silent=True)
+    validated = validate_update_progress(data)
+    libro = update_book_progress(book_id, validated)
     return jsonify({"data": libro}), 200
 
 

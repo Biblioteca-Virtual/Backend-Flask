@@ -15,6 +15,9 @@ BOOK_FIELDS = {
     "cantidad",
     "categoria_id",
     "autores",
+    "paginas_totales",
+    "paginas_leidas",
+    "imagen_portada",
 }
 
 
@@ -41,12 +44,19 @@ def _check_autores_field(autores, errors, required=False):
 
 def _validate_book_common(data, errors, is_create=False):
     check_positive_int(data.get("anio_publicacion"), "anio_publicacion", errors)
-    check_categoria_id(data.get("categoria_id"), errors, required=is_create)
-    _check_autores_field(data.get("autores"), errors, required=is_create)
+    if "categoria_id" in data and data.get("categoria_id") is not None:
+        _check_categoria_id(data.get("categoria_id"), errors, required=False)
+    _check_autores_field(data.get("autores"), errors, required=False)
 
     cantidad = data.get("cantidad", 1 if is_create else None)
     if is_create or "cantidad" in data:
         check_non_negative_int(cantidad, "cantidad", errors)
+
+    if "paginas_totales" in data and data.get("paginas_totales") is not None:
+        check_non_negative_int(data.get("paginas_totales"), "paginas_totales", errors)
+
+    if "paginas_leidas" in data and data.get("paginas_leidas") is not None:
+        check_non_negative_int(data.get("paginas_leidas"), "paginas_leidas", errors)
 
 
 def validate_create_book(data):
@@ -57,9 +67,20 @@ def validate_create_book(data):
     if not titulo:
         errors.append("titulo es requerido")
 
+    cat_id = data.get("categoria_id")
+    if cat_id is None or cat_id == "":
+        cat_id = 1
+    elif not is_integer(cat_id):
+        errors.append("categoria_id debe ser un número entero")
+    else:
+        cat_id = int(cat_id)
+
     _validate_book_common(data, errors, is_create=True)
     if errors:
         raise ValidationError(errors)
+
+    pag_totales = data.get("paginas_totales")
+    pag_leidas = data.get("paginas_leidas")
 
     return {
         "titulo": titulo,
@@ -67,8 +88,11 @@ def validate_create_book(data):
         "descripcion": data.get("descripcion"),
         "anio_publicacion": data.get("anio_publicacion"),
         "cantidad": data.get("cantidad", 1),
-        "categoria_id": data.get("categoria_id"),
+        "categoria_id": cat_id,
         "autores": data.get("autores", []),
+        "paginas_totales": int(pag_totales) if pag_totales is not None else 0,
+        "paginas_leidas": int(pag_leidas) if pag_leidas is not None else 0,
+        "imagen_portada": (data.get("imagen_portada") or "").strip() or None,
     }
 
 
@@ -78,7 +102,18 @@ def _collect_update_book_data(data):
         result["titulo"] = str(data["titulo"]).strip()
     if "isbn" in data:
         result["isbn"] = (data.get("isbn") or "").strip() or None
-    for field in ("descripcion", "anio_publicacion", "cantidad", "categoria_id", "autores"):
+    if "imagen_portada" in data:
+        result["imagen_portada"] = (data.get("imagen_portada") or "").strip() or None
+
+    for field in (
+        "descripcion",
+        "anio_publicacion",
+        "cantidad",
+        "categoria_id",
+        "autores",
+        "paginas_totales",
+        "paginas_leidas",
+    ):
         if field in data:
             result[field] = data[field]
     return result
@@ -91,7 +126,7 @@ def validate_update_book(data):
         BOOK_FIELDS,
         "Debe indicar al menos un campo a actualizar entre "
         "titulo, isbn, descripcion, anio_publicacion, cantidad, "
-        "categoria_id, autores",
+        "categoria_id, autores, paginas_totales, paginas_leidas, imagen_portada",
     )
 
     errors = []
@@ -105,3 +140,27 @@ def validate_update_book(data):
         raise ValidationError(errors)
 
     return _collect_update_book_data(data)
+
+
+def validate_update_progress(data):
+    ensure_dict(data)
+    errors = []
+
+    if "paginas_totales" not in data and "paginas_leidas" not in data:
+        raise ValidationError(["Debe indicar paginas_totales o paginas_leidas"])
+
+    if "paginas_totales" in data and data.get("paginas_totales") is not None:
+        check_non_negative_int(data.get("paginas_totales"), "paginas_totales", errors)
+
+    if "paginas_leidas" in data and data.get("paginas_leidas") is not None:
+        check_non_negative_int(data.get("paginas_leidas"), "paginas_leidas", errors)
+
+    if errors:
+        raise ValidationError(errors)
+
+    result = {}
+    if "paginas_totales" in data:
+        result["paginas_totales"] = int(data["paginas_totales"])
+    if "paginas_leidas" in data:
+        result["paginas_leidas"] = int(data["paginas_leidas"])
+    return result
