@@ -28,6 +28,8 @@ tags:
     description: Registro y seguimiento de lecturas de usuarios
   - name: Reseñas
     description: Reseñas públicas de libros
+  - name: Colecciones
+    description: Colecciones de libros propias de cada usuario
   - name: Ruleta
     description: Selección aleatoria de libros disponibles
   - name: Documentación
@@ -197,12 +199,11 @@ paths:
               $ref: '#/components/schemas/CreateBookRequest'
             example:
               titulo: El nombre de la rosa
-              cantidad: 3
               categoria_id: 1
-              autores:
-                - 1
-              anio_publicacion: 1980
-              isbn: 978-84-204-2222-8
+              paginas_totales: 600
+              paginas_leidas: 0
+              ubicacion: web
+              url_lectura: https://lector.example.com/el-nombre-de-la-rosa
               descripcion: Novela histórica.
       responses:
         '201':
@@ -219,6 +220,130 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+
+  /api/books/authors:
+    get:
+      tags:
+        - Libros
+      summary: Listar autores
+      description: Autores compartidos por todos los usuarios, ordenados por apellido.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de autores.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Libros
+      summary: Agregar un autor
+      description: >-
+        Crea un autor a partir de su nombre completo (la primera palabra es el
+        nombre y el resto el apellido). Si ya existe uno con el mismo nombre
+        completo, sin importar mayúsculas, responde 200 con el existente.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nombre_completo
+              properties:
+                nombre_completo:
+                  type: string
+                  maxLength: 200
+            example:
+              nombre_completo: J.K. Rowling
+      responses:
+        '200':
+          description: El autor ya existía.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autor'
+        '201':
+          description: Autor creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autor'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/books/categories:
+    get:
+      tags:
+        - Libros
+      summary: Listar categorías
+      description: Categorías compartidas por todos los usuarios, ordenadas por nombre.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de categorías.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Libros
+      summary: Agregar una categoría
+      description: Crea una categoría compartida. Si ya existe con otro uso de mayúsculas, responde 200 con la existente.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nombre
+              properties:
+                nombre:
+                  type: string
+                  maxLength: 100
+            example:
+              nombre: Poesía
+      responses:
+        '200':
+          description: La categoría ya existía.
+        '201':
+          description: Categoría creada.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/books/{book_id}/reviews:
+    get:
+      tags:
+        - Libros
+      summary: Reseñas del libro y de títulos equivalentes
+      description: >-
+        Devuelve las reseñas de este libro y de los libros de otros usuarios cuyo
+        título es el mismo ignorando tildes, mayúsculas y signos, o con pequeños
+        errores de tipeo (parecido de al menos 85%).
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: Reseñas, de la más nueva a la más vieja.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 
   /api/books/{book_id}:
     get:
@@ -259,7 +384,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateBookRequest'
             example:
-              cantidad: 0
+              ubicacion: kindle
               titulo: El nombre de la rosa
       responses:
         '200':
@@ -563,6 +688,191 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /api/collections/:
+    get:
+      tags:
+        - Colecciones
+      summary: Listar mis colecciones
+      description: Devuelve las colecciones del usuario autenticado con la cantidad de libros de cada una.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Colección.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Colecciones
+      summary: Crear una colección
+      description: Crea una colección vacía. El nombre no puede repetirse entre las colecciones del mismo usuario.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionNameRequest'
+            example:
+              nombre: Para releer
+      responses:
+        '201':
+          description: Colección.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/collections/{collection_id}:
+    get:
+      tags:
+        - Colecciones
+      summary: Obtener una colección
+      description: Devuelve una colección propia con sus libros.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          description: Colección.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Colecciones
+      summary: Renombrar una colección
+      description: Cambia el nombre de una colección propia. También acepta PATCH.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionNameRequest'
+            example:
+              nombre: Para releer
+      responses:
+        '200':
+          description: Colección.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Colecciones
+      summary: Eliminar una colección
+      description: Elimina una colección propia. Los libros no se borran del catálogo.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/collections/{collection_id}/books:
+    post:
+      tags:
+        - Colecciones
+      summary: Agregar un libro a una colección
+      description: Agrega un libro del catálogo a una colección propia. Si ya estaba, no hace nada.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionBookRequest'
+            example:
+              libro_id: 1
+      responses:
+        '200':
+          description: Colección.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/collections/{collection_id}/books/{book_id}:
+    delete:
+      tags:
+        - Colecciones
+      summary: Quitar un libro de una colección
+      description: Quita un libro de una colección propia sin borrarlo del catálogo.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CollectionId'
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: Colección.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/roulette/spin:
     post:
       tags:
@@ -626,6 +936,16 @@ components:
       in: path
       required: true
       description: Identificador único de la lectura.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 2147483647
+    CollectionId:
+      name: collection_id
+      in: path
+      required: true
+      description: Identificador único de la colección.
       schema:
         type: integer
         format: int32
@@ -866,71 +1186,91 @@ components:
           example: Novela
     Book:
       type: object
+      description: Libro de la biblioteca de un usuario. Solo lo ve su dueño.
       required:
         - id
+        - usuario_id
         - titulo
-        - isbn
         - descripcion
-        - anio_publicacion
-        - cantidad
         - autores
         - categoria
+        - paginas_totales
+        - paginas_leidas
+        - porcentaje_lectura
+        - terminado
+        - ubicacion
       properties:
         id:
           type: integer
           format: int32
           minimum: 1
           example: 1
+        usuario_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 6
         titulo:
           type: string
           example: El nombre de la rosa
-        isbn:
-          type: string
-          nullable: true
-          example: 978-84-204-2222-8
-        cantidad:
-          type: integer
-          format: int32
-          minimum: 0
-          example: 3
         autores:
           type: array
           items:
             $ref: '#/components/schemas/Autor'
         categoria:
           $ref: '#/components/schemas/Categoria'
-        anio_publicacion:
-          type: integer
-          format: int32
-          nullable: true
-          example: 1980
         descripcion:
           type: string
           nullable: true
           example: Novela histórica.
+        paginas_totales:
+          type: integer
+          minimum: 0
+          example: 600
+        paginas_leidas:
+          type: integer
+          minimum: 0
+          example: 120
+        imagen_portada:
+          type: string
+          nullable: true
+          example: /api/storage/covers/portada.jpg
+        porcentaje_lectura:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 20
+        terminado:
+          type: boolean
+          description: Tiene páginas cargadas y ya se leyeron todas.
+          example: false
+        ubicacion:
+          type: string
+          enum: [fisico, kindle, web]
+          description: Dónde se lee el libro. 'kindle' es Books/Kindle.
+          example: web
+        url_lectura:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Obligatoria y solo usada cuando ubicacion es 'web'.
+          example: https://lector.example.com/el-nombre-de-la-rosa
     CreateBookRequest:
       type: object
       required:
         - titulo
-        - categoria_id
       additionalProperties: false
       properties:
         titulo:
           type: string
           minLength: 1
-          maxLength: 200
+          maxLength: 255
           example: El nombre de la rosa
-        isbn:
-          type: string
-          maxLength: 20
-          nullable: true
-          example: 978-84-204-2222-8
-        cantidad:
+        categoria_id:
           type: integer
           format: int32
-          minimum: 0
-          default: 1
-          example: 3
+          minimum: 1
+          example: 1
         autores:
           type: array
           uniqueItems: true
@@ -938,20 +1278,33 @@ components:
             type: integer
             format: int32
             minimum: 1
-        categoria_id:
-          type: integer
-          format: int32
-          minimum: 1
-          example: 1
-        anio_publicacion:
-          type: integer
-          format: int32
-          nullable: true
-          example: 1980
         descripcion:
           type: string
           nullable: true
           example: Novela histórica.
+        paginas_totales:
+          type: integer
+          minimum: 0
+          example: 600
+        paginas_leidas:
+          type: integer
+          minimum: 0
+          example: 120
+        imagen_portada:
+          type: string
+          nullable: true
+          example: /api/storage/covers/portada.jpg
+        ubicacion:
+          type: string
+          enum: [fisico, kindle, web]
+          description: Dónde se lee el libro. 'kindle' es Books/Kindle.
+          example: web
+        url_lectura:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Obligatoria y solo usada cuando ubicacion es 'web'.
+          example: https://lector.example.com/el-nombre-de-la-rosa
     UpdateBookRequest:
       type: object
       minProperties: 1
@@ -960,15 +1313,12 @@ components:
         titulo:
           type: string
           minLength: 1
-          maxLength: 200
-        isbn:
-          type: string
-          maxLength: 20
-          nullable: true
-        cantidad:
+          maxLength: 255
+        categoria_id:
           type: integer
           format: int32
-          minimum: 0
+          minimum: 1
+          example: 1
         autores:
           type: array
           uniqueItems: true
@@ -976,17 +1326,33 @@ components:
             type: integer
             format: int32
             minimum: 1
-        categoria_id:
-          type: integer
-          format: int32
-          minimum: 1
-        anio_publicacion:
-          type: integer
-          format: int32
-          nullable: true
         descripcion:
           type: string
           nullable: true
+          example: Novela histórica.
+        paginas_totales:
+          type: integer
+          minimum: 0
+          example: 600
+        paginas_leidas:
+          type: integer
+          minimum: 0
+          example: 120
+        imagen_portada:
+          type: string
+          nullable: true
+          example: /api/storage/covers/portada.jpg
+        ubicacion:
+          type: string
+          enum: [fisico, kindle, web]
+          description: Dónde se lee el libro. 'kindle' es Books/Kindle.
+          example: web
+        url_lectura:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Obligatoria y solo usada cuando ubicacion es 'web'.
+          example: https://lector.example.com/el-nombre-de-la-rosa
     Reading:
       type: object
       required:
@@ -1082,6 +1448,77 @@ components:
           enum:
             - activo
             - devuelto
+    Collection:
+      type: object
+      required:
+        - id
+        - usuario_id
+        - nombre
+        - fecha_creacion
+        - cantidad_libros
+        - libros
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        usuario_id:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        nombre:
+          type: string
+          maxLength: 100
+          example: Para releer
+        fecha_creacion:
+          type: string
+          description: Fecha en formato RFC 1123.
+          example: Thu, 29 Oct 2026 15:09:54 GMT
+        cantidad_libros:
+          type: integer
+          minimum: 0
+          example: 1
+        libros:
+          type: array
+          description: Libros de la colección. En el listado viene vacío; usar el detalle.
+          items:
+            $ref: '#/components/schemas/Book'
+    CollectionNameRequest:
+      type: object
+      required:
+        - nombre
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+    CollectionBookRequest:
+      type: object
+      required:
+        - libro_id
+      properties:
+        libro_id:
+          type: integer
+          format: int32
+          minimum: 1
+    CollectionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Collection'
+    CollectionListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Collection'
     Review:
       type: object
       required:

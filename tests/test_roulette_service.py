@@ -18,17 +18,17 @@ class RouletteServiceTest(unittest.TestCase):
             patch.object(roulette_service, "fetch_one", return_value={"id": 3}),
             patch.object(roulette_service, "get_book", return_value=book) as mock_get,
         ):
-            result = roulette_service.spin()
+            result = roulette_service.spin(7)
 
         self.assertEqual(result, book)
-        mock_get.assert_called_once_with(3)
+        mock_get.assert_called_once_with(3, 7)
 
     def test_spin_raises_conflict_when_no_books(self):
         with (
             patch.object(roulette_service, "fetch_one", return_value=None),
             self.assertRaises(ConflictError),
         ):
-            roulette_service.spin()
+            roulette_service.spin(7)
 
 
 if __name__ == "__main__":

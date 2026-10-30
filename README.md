@@ -19,6 +19,19 @@ python run.py
 # Ejecutar BD
 docker compose up
 
+# Migraciones de la base de datos
+`database/init.sql` solo se ejecuta la **primera vez** que se crea el volumen
+de Docker. Si la base ya existía, los cambios de esquema hay que aplicarlos con
+las migraciones de `database/migrations/`, en orden:
+
+```bash
+docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/008_catalogo_y_remover_prestamos.sql
+docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/009_colecciones.sql
+docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/010_bibliotecas_por_usuario.sql
+```
+
+Son idempotentes: se pueden volver a ejecutar sin romper nada.
+
 # Ejecutar pruebas
 python -m unittest discover -s tests -v
 

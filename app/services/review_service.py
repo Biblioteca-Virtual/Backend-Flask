@@ -58,7 +58,9 @@ def list_reviews():
 
 
 def _ensure_entities_exist(libro_id, usuario_id):
-    if fetch_one("SELECT id FROM libros WHERE id = %s", (libro_id,)) is None:
+    if fetch_one(
+        "SELECT id FROM libros WHERE id = %s AND usuario_id = %s", (libro_id, usuario_id)
+    ) is None:
         raise NotFoundError("Libro")
     if fetch_one("SELECT id FROM usuarios WHERE id = %s", (usuario_id,)) is None:
         raise NotFoundError("Usuario")
