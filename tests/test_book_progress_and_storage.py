@@ -23,7 +23,7 @@ class BookProgressAndStorageTest(BaseRouteTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["data"]["porcentaje_lectura"], 50)
-        mock_update.assert_called_once_with(1, {"paginas_totales": 500, "paginas_leidas": 250})
+        mock_update.assert_called_once_with(1, {"paginas_totales": 500, "paginas_leidas": 250}, 42)
 
     def test_upload_cover_image(self):
         data = {

@@ -19,6 +19,7 @@ def _init_cors(app):
 def _register_blueprints(app):
     from app.routes.auth import auth_bp
     from app.routes.books import books_bp
+    from app.routes.collections import collections_bp
     from app.routes.docs import docs_bp
     from app.routes.health import health_bp
     from app.routes.reviews import reviews_bp
@@ -31,6 +32,7 @@ def _register_blueprints(app):
     api_routes = [
         (auth_bp, "/api/auth"),
         (books_bp, "/api/books"),
+        (collections_bp, "/api/collections"),
         (reviews_bp, "/api/reviews"),
         (roulette_bp, "/api/roulette"),
         (storage_bp, "/api/storage"),

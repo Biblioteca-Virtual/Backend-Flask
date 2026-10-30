@@ -1,62 +1,61 @@
 from app.errors.exceptions import ValidationError
+from app.models.book import UBICACIONES
 from app.schemas.common import (
     check_allowed_fields,
     check_non_negative_int,
-    check_positive_int,
     ensure_dict,
     is_integer,
 )
 
 BOOK_FIELDS = {
     "titulo",
-    "isbn",
     "descripcion",
-    "anio_publicacion",
-    "cantidad",
     "categoria_id",
     "autores",
     "paginas_totales",
     "paginas_leidas",
     "imagen_portada",
+    "ubicacion",
+    "url_lectura",
 }
+
+MAX_URL = 500
 
 
 def _valid_autores(autores):
-    return isinstance(autores, list) and all(
-        is_integer(a) for a in autores
-    )
+    return isinstance(autores, list) and all(is_integer(a) for a in autores)
 
 
-def _check_categoria_id(categoria_id, errors, required=False):
-    if categoria_id is None:
-        if required:
-            errors.append("categoria_id es requerido")
-    elif not is_integer(categoria_id):
-        errors.append("categoria_id debe ser un número entero")
-
-
-def _check_autores_field(autores, errors, required=False):
-    if autores is None and not required:
-        return
-    if not _valid_autores(autores or []):
+def _check_autores_field(autores, errors):
+    if autores is not None and not _valid_autores(autores):
         errors.append("autores debe ser una lista de ids")
 
 
-def _validate_book_common(data, errors, is_create=False):
-    check_positive_int(data.get("anio_publicacion"), "anio_publicacion", errors)
-    if "categoria_id" in data and data.get("categoria_id") is not None:
-        _check_categoria_id(data.get("categoria_id"), errors, required=False)
-    _check_autores_field(data.get("autores"), errors, required=False)
+def _check_paginas(data, errors):
+    for field in ("paginas_totales", "paginas_leidas"):
+        if data.get(field) is not None:
+            check_non_negative_int(data.get(field), field, errors)
 
-    cantidad = data.get("cantidad", 1 if is_create else None)
-    if is_create or "cantidad" in data:
-        check_non_negative_int(cantidad, "cantidad", errors)
 
-    if "paginas_totales" in data and data.get("paginas_totales") is not None:
-        check_non_negative_int(data.get("paginas_totales"), "paginas_totales", errors)
+def _clean_url(value):
+    if isinstance(value, str):
+        return value.strip() or None
+    return value
 
-    if "paginas_leidas" in data and data.get("paginas_leidas") is not None:
-        check_non_negative_int(data.get("paginas_leidas"), "paginas_leidas", errors)
+
+def _check_ubicacion(ubicacion, url, errors):
+    """La URL solo tiene sentido (y es obligatoria) cuando se lee en la web."""
+    if ubicacion not in UBICACIONES:
+        errors.append("ubicacion debe ser fisico, kindle o web")
+        return
+    if ubicacion != "web":
+        return
+    if not isinstance(url, str) or not url:
+        errors.append("url_lectura es requerida cuando la ubicación es web")
+    elif not url.startswith(("http://", "https://")):
+        errors.append("url_lectura debe empezar con http:// o https://")
+    elif len(url) > MAX_URL:
+        errors.append(f"url_lectura no puede superar los {MAX_URL} caracteres")
 
 
 def validate_create_book(data):
@@ -72,74 +71,73 @@ def validate_create_book(data):
         cat_id = 1
     elif not is_integer(cat_id):
         errors.append("categoria_id debe ser un número entero")
-    else:
-        cat_id = int(cat_id)
 
-    _validate_book_common(data, errors, is_create=True)
+    _check_autores_field(data.get("autores"), errors)
+    _check_paginas(data, errors)
+
+    ubicacion = data.get("ubicacion") or "fisico"
+    url = _clean_url(data.get("url_lectura"))
+    _check_ubicacion(ubicacion, url, errors)
+
     if errors:
         raise ValidationError(errors)
 
-    pag_totales = data.get("paginas_totales")
-    pag_leidas = data.get("paginas_leidas")
-
     return {
         "titulo": titulo,
-        "isbn": (data.get("isbn") or "").strip() or None,
         "descripcion": data.get("descripcion"),
-        "anio_publicacion": data.get("anio_publicacion"),
-        "cantidad": data.get("cantidad", 1),
         "categoria_id": cat_id,
-        "autores": data.get("autores", []),
-        "paginas_totales": int(pag_totales) if pag_totales is not None else 0,
-        "paginas_leidas": int(pag_leidas) if pag_leidas is not None else 0,
+        "autores": data.get("autores") or [],
+        "paginas_totales": int(data.get("paginas_totales") or 0),
+        "paginas_leidas": int(data.get("paginas_leidas") or 0),
         "imagen_portada": (data.get("imagen_portada") or "").strip() or None,
+        "ubicacion": ubicacion,
+        "url_lectura": url if ubicacion == "web" else None,
     }
 
 
-def _collect_update_book_data(data):
-    result = {}
-    if "titulo" in data:
-        result["titulo"] = str(data["titulo"]).strip()
-    if "isbn" in data:
-        result["isbn"] = (data.get("isbn") or "").strip() or None
-    if "imagen_portada" in data:
-        result["imagen_portada"] = (data.get("imagen_portada") or "").strip() or None
+def validate_update_book(data, current_ubicacion="fisico", current_url=None):
+    """Valida una actualización parcial.
 
-    for field in (
-        "descripcion",
-        "anio_publicacion",
-        "cantidad",
-        "categoria_id",
-        "autores",
-        "paginas_totales",
-        "paginas_leidas",
-    ):
-        if field in data:
-            result[field] = data[field]
-    return result
-
-
-def validate_update_book(data):
+    Como la URL depende de la ubicación, se valida contra el estado que quedará
+    guardado: lo enviado o, si no se envió, lo actual.
+    """
     ensure_dict(data)
     check_allowed_fields(
         data,
         BOOK_FIELDS,
         "Debe indicar al menos un campo a actualizar entre "
-        "titulo, isbn, descripcion, anio_publicacion, cantidad, "
-        "categoria_id, autores, paginas_totales, paginas_leidas, imagen_portada",
+        "titulo, descripcion, categoria_id, autores, paginas_totales, "
+        "paginas_leidas, imagen_portada, ubicacion, url_lectura",
     )
 
     errors = []
-    _validate_book_common(data, errors, is_create=False)
-
     titulo = data.get("titulo")
     if titulo is not None and not str(titulo).strip():
         errors.append("titulo no puede estar vacío")
+    if data.get("categoria_id") is not None and not is_integer(data.get("categoria_id")):
+        errors.append("categoria_id debe ser un número entero")
+    _check_autores_field(data.get("autores"), errors)
+    _check_paginas(data, errors)
+
+    result = {}
+    if "ubicacion" in data or "url_lectura" in data:
+        ubicacion = data.get("ubicacion", current_ubicacion) or "fisico"
+        url = _clean_url(data["url_lectura"]) if "url_lectura" in data else current_url
+        _check_ubicacion(ubicacion, url, errors)
+        result["ubicacion"] = ubicacion
+        result["url_lectura"] = url if ubicacion == "web" else None
 
     if errors:
         raise ValidationError(errors)
 
-    return _collect_update_book_data(data)
+    if "titulo" in data:
+        result["titulo"] = str(data["titulo"]).strip()
+    if "imagen_portada" in data:
+        result["imagen_portada"] = (data.get("imagen_portada") or "").strip() or None
+    for field in ("descripcion", "categoria_id", "autores", "paginas_totales", "paginas_leidas"):
+        if field in data:
+            result[field] = data[field]
+    return result
 
 
 def validate_update_progress(data):
@@ -149,12 +147,7 @@ def validate_update_progress(data):
     if "paginas_totales" not in data and "paginas_leidas" not in data:
         raise ValidationError(["Debe indicar paginas_totales o paginas_leidas"])
 
-    if "paginas_totales" in data and data.get("paginas_totales") is not None:
-        check_non_negative_int(data.get("paginas_totales"), "paginas_totales", errors)
-
-    if "paginas_leidas" in data and data.get("paginas_leidas") is not None:
-        check_non_negative_int(data.get("paginas_leidas"), "paginas_leidas", errors)
-
+    _check_paginas(data, errors)
     if errors:
         raise ValidationError(errors)
 
@@ -164,3 +157,26 @@ def validate_update_progress(data):
     if "paginas_leidas" in data:
         result["paginas_leidas"] = int(data["paginas_leidas"])
     return result
+
+
+def validate_author(data):
+    ensure_dict(data)
+    completo = data.get("nombre_completo")
+    if not isinstance(completo, str) or not completo.strip():
+        raise ValidationError(["nombre_completo es requerido"])
+    # Un solo espacio entre palabras para que la búsqueda de duplicados funcione.
+    completo = " ".join(completo.split())
+    if len(completo) > 200:
+        raise ValidationError(["nombre_completo no puede superar los 200 caracteres"])
+    return {"nombre_completo": completo}
+
+
+def validate_category(data):
+    ensure_dict(data)
+    nombre = data.get("nombre")
+    if not isinstance(nombre, str) or not nombre.strip():
+        raise ValidationError(["nombre es requerido"])
+    nombre = nombre.strip()
+    if len(nombre) > 100:
+        raise ValidationError(["nombre no puede superar los 100 caracteres"])
+    return {"nombre": nombre}

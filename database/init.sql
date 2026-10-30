@@ -40,33 +40,33 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 -- ============================================
 -- TABLA: libros
--- Incluye páginas totales, leídas y almacenamiento de imagen de portada
+-- Cada libro pertenece a la biblioteca de un usuario
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS libros (
     id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
     titulo VARCHAR(255) NOT NULL,
-    isbn VARCHAR(20) UNIQUE,
     descripcion TEXT,
-    anio_publicacion INTEGER,
-    cantidad INTEGER NOT NULL DEFAULT 1,
     categoria_id INTEGER NOT NULL DEFAULT 1,
     paginas_totales INTEGER NOT NULL DEFAULT 0,
     paginas_leidas INTEGER NOT NULL DEFAULT 0,
     imagen_portada VARCHAR(500),
+    -- Dónde se está leyendo: 'fisico', 'kindle' (Books/Kindle) o 'web'.
+    ubicacion VARCHAR(10) NOT NULL DEFAULT 'fisico',
+    url_lectura VARCHAR(500),
+
+    CONSTRAINT fk_libro_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id)
+        ON DELETE CASCADE,
 
     CONSTRAINT fk_libro_categoria
         FOREIGN KEY (categoria_id)
         REFERENCES categorias(id),
 
-    CONSTRAINT check_anio_publicacion
-        CHECK (
-            anio_publicacion IS NULL
-            OR anio_publicacion > 0
-        ),
-
-    CONSTRAINT check_cantidad
-        CHECK (cantidad >= 0),
+    CONSTRAINT check_ubicacion
+        CHECK (ubicacion IN ('fisico', 'kindle', 'web')),
 
     CONSTRAINT check_paginas_totales
         CHECK (paginas_totales >= 0),
@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS libros (
     CONSTRAINT check_paginas_leidas
         CHECK (paginas_leidas >= 0)
 );
+
+CREATE INDEX IF NOT EXISTS idx_libros_usuario
+    ON libros(usuario_id);
 
 CREATE INDEX IF NOT EXISTS idx_libros_categoria
     ON libros(categoria_id);
@@ -136,6 +139,53 @@ CREATE TABLE IF NOT EXISTS resenas (
 
 
 -- ============================================
+-- TABLA: colecciones
+-- Agrupaciones de libros con nombre, propias de cada usuario
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS colecciones (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_coleccion_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_coleccion_usuario_nombre
+        UNIQUE (usuario_id, nombre)
+);
+
+CREATE INDEX IF NOT EXISTS idx_colecciones_usuario
+    ON colecciones(usuario_id);
+
+
+-- ============================================
+-- TABLA INTERMEDIA: colecciones_libros
+-- Relación N:M entre colecciones y libros
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS colecciones_libros (
+    coleccion_id INTEGER NOT NULL,
+    libro_id INTEGER NOT NULL,
+
+    PRIMARY KEY (coleccion_id, libro_id),
+
+    CONSTRAINT fk_coleccion_libro_coleccion
+        FOREIGN KEY (coleccion_id)
+        REFERENCES colecciones(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_coleccion_libro_libro
+        FOREIGN KEY (libro_id)
+        REFERENCES libros(id)
+        ON DELETE CASCADE
+);
+
+
+-- ============================================
 -- DATOS INICIALES: Categorías indispensables para el catálogo
 -- ============================================
 
@@ -168,22 +218,3 @@ INSERT INTO autores (id, nombre, apellido) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('autores_id_seq', COALESCE((SELECT MAX(id) FROM autores), 1));
-
-
--- ============================================
--- DATOS INICIALES: Libros de demostración en el catálogo
--- ============================================
-
-INSERT INTO libros (id, titulo, isbn, descripcion, anio_publicacion, cantidad, categoria_id, paginas_totales, paginas_leidas, imagen_portada) VALUES
-(1, 'Cien años de soledad', '978-0307474728', 'La saga de la familia Buendía en el mítico pueblo de Macondo.', 1967, 3, 2, 471, 180, NULL),
-(2, 'Ficciones', '978-0307950925', 'Colección de cuentos que desafían el tiempo, los espejos y los laberintos.', 1944, 2, 2, 224, 90, NULL),
-(3, 'Fundación', '978-8499890470', 'La caída del Imperio Galáctico y el nacimiento de la psicohistoria.', 1951, 4, 3, 260, 65, NULL)
-ON CONFLICT (id) DO NOTHING;
-
-SELECT setval('libros_id_seq', COALESCE((SELECT MAX(id) FROM libros), 1));
-
-INSERT INTO libros_autores (libro_id, autor_id) VALUES
-(1, 1),
-(2, 2),
-(3, 5)
-ON CONFLICT DO NOTHING;
