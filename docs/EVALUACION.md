@@ -3,20 +3,20 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-10-29.
+> Generado: 2026-11-02.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
 | Tipo de proyecto | backend |
-| Índice de calidad de servicios | **30/100** (mínimo 60) |
+| Índice de calidad de servicios | **26/100** (mínimo 60) |
 | Criterios cumplidos | **11/15** |
 | Aprobado (semáforo) | **NO** |
-| Código (LOC) | 1,625 |
-| Archivos de código | 38 |
-| Tests (archivos) | 9 |
-| Cobertura de líneas | 59.7% (mínimo 80%) |
+| Código (LOC) | 2,234 |
+| Archivos de código | 47 |
+| Tests (archivos) | 13 |
+| Cobertura de líneas | 66.9% (mínimo 80%) |
 | Capas detectadas | presentacion, logica, datos |
 
 > **Aprobado** exige cumplir **todos** los criterios del semáforo. No es una nota: sirve para ordenar y priorizar la revisión.
@@ -25,7 +25,7 @@
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| Máximo Aznar Massut | 13 | 2,331 | 0 | 1,295 | 9 | 100% |
+| Máximo Aznar Massut | 14 | 3,231 | 0 | 1,745 | 10 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -47,7 +47,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina todas las señales y métricas del análisis, con topes duros por duplicación.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **30/100** _(mínimo 60)_
+- **Tu resultado:** índice **26/100** _(mínimo 60)_
 - **Para investigar la causa:**
     - ¿En qué momento del proyecto se concentraron los problemas (arranque, integración de partes, cierre)?
     - ¿El índice bajó por muchas señales chicas o por una o dos graves?
@@ -57,7 +57,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **5.9%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **4.3%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -109,7 +109,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Una clase o unidad cuyos métodos y campos no están relacionados entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos es frágil y cuesta entenderla.
-- **Tu resultado:** **2** unidad(es) con baja cohesión _(máximo 0)_
+- **Tu resultado:** **4** unidad(es) con baja cohesión _(máximo 0)_
 - **Para investigar la causa:**
     - ¿La unidad agrupa cosas que en realidad pertenecen a lugares distintos?
     - ¿Cambia por motivos diferentes según la tarea?
@@ -119,7 +119,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de una función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **6** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 1625 LOC))_
+- **Tu resultado:** **6** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 2234 LOC))_
 
 ### 12. Funciones/métodos largos o con muchos parámetros (Tam) — OK
 
@@ -131,13 +131,13 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Cuánto depende una unidad de las partes internas de otra.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
-- **Tu resultado:** **2** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
+- **Tu resultado:** **3** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
 
 ### 14. Cobertura de tests (Cob) — A REVISAR
 
 - **Qué mide:** Porcentaje de líneas de código ejecutadas por la suite de tests (cobertura real, no cantidad de archivos de test).
 - **Por qué importa:** Un test que existe pero no ejecuta el código no protege de nada: la cobertura muestra qué partes quedan sin verificar.
-- **Tu resultado:** **59.7%** de líneas cubiertas · fuente: ejecución: pytest _(mínimo 80% de líneas)_
+- **Tu resultado:** **66.9%** de líneas cubiertas · fuente: ejecución: pytest _(mínimo 80% de líneas)_
 - **Para investigar la causa:**
     - ¿Qué módulos o ramas del sistema nunca se ejecutan en los tests?
     - ¿Los tests prueban el camino principal y los errores, o solo el caso feliz?
@@ -147,20 +147,20 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Cantidad de endpoints (rutas HTTP) expuestos por el backend.
 - **Por qué importa:** El backend se mide por lo que expone: pocos endpoints sugiere poca funcionalidad de servicio.
-- **Tu resultado:** **21** endpoint(s) _(mínimo 10)_
+- **Tu resultado:** **33** endpoint(s) _(mínimo 10)_
 
 ## 5. Qué falta para aprobar
 
-Criterios que hoy están en rojo y qué habría que cambiar para alcanzar el nivel de aprobación (perfil `exigente`):
+Criterios que hoy están en rojo y, para cada uno, una explicación breve de **cómo corregirlo** hasta alcanzar el nivel de aprobación (perfil `exigente`):
 
-| Criterio | Resultado actual | Meta | Qué arreglar |
+| Criterio | Resultado actual | Meta | Cómo corregirlo |
 |---|---|---|---|
-| Índice de calidad de servicios (indice) | índice **30/100** | mínimo 60 | Subir el índice a ≥60 corrigiendo primero las señales de más peso: duplicación, secretos, SQL y capas. |
-| Consultas SQL por concatenación (SQL) | **1** consulta(s) SQL por concatenación | máximo 0 | Parametrizar las consultas en lugar de concatenar o interpolar valores; 0 casos. |
-| Baja cohesión (Coh) | **2** unidad(es) con baja cohesión | máximo 0 | Separar en unidades con una sola responsabilidad; 0 clases con baja cohesión. |
-| Cobertura de tests (Cob) | **59.7%** de líneas cubiertas · fuente: ejecución: pytest | mínimo 80% de líneas | Publicar cobertura (o correr la suite con coverage) y cubrir ≥80% de líneas. |
+| Índice de calidad de servicios (indice) | índice **26/100** | mínimo 60 | El índice es un resumen: sube al corregir los criterios en rojo. Empezá por los de más peso (duplicación ≤15%, SEC y SQL en 0, capas ≥2) y volvé a medir; la meta es ≥60. |
+| Consultas SQL por concatenación (SQL) | **1** consulta(s) SQL por concatenación | máximo 0 | Reemplazá la concatenación/interpolación por una consulta parametrizada (`?` o `:param` según el driver), pasando los valores aparte. Meta: 0 casos. |
+| Baja cohesión (Coh) | **4** unidad(es) con baja cohesión | máximo 0 | Separá la clase en unidades con una sola responsabilidad: si los métodos cambian por motivos distintos, son clases distintas. Meta: 0 clases con baja cohesión. |
+| Cobertura de tests (Cob) | **66.9%** de líneas cubiertas · fuente: ejecución: pytest | mínimo 80% de líneas | Agregá o ampliá tests que ejecuten los módulos sin cubrir (camino principal y errores) y publicá el artefacto (`coverage/lcov.info`, `coverage-summary.json`, `coverage.xml` o `coverage.json`) o corré la suite con coverage. Meta: ≥80% de líneas. |
 
-> Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo.
+> Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo. Después de corregir, volvé a correr la medición: el semáforo se recalcula sobre `main`.
 
 ## 6. Anexo: dónde mirar
 
@@ -169,9 +169,11 @@ Archivos donde el análisis encontró cada señal en rojo (sin número de línea
 **Consultas SQL por concatenación (SQL)** — 1 archivo(s):
 - `app/services/book_service.py`
 
-**Baja cohesión (Coh)** — 2 archivo(s):
+**Baja cohesión (Coh)** — 4 archivo(s):
+- `tests/test_book_schema.py`
 - `tests/test_review_schema.py`
 - `tests/test_review_service.py`
+- `tests/test_title_match.py`
 
 ---
 _Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo señalado y el criterio en `CRITERIOS-CALIDAD.md`._
