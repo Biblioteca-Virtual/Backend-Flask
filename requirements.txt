@@ -9,3 +9,4 @@ psycopg2-binary==2.9.13
 PyJWT==2.14.0
 argon2-cffi==25.1.0
 flask-cors==6.0.5
+python-dotenv==1.2.3

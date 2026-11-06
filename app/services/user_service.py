@@ -1,7 +1,8 @@
 from app.db import execute, fetch_one, fetch_value
 from app.errors.exceptions import ConflictError, NotFoundError, UnauthorizedError
 from app.models.user import Usuario
-from app.security import create_token, hash_password, is_legacy_password_hash, verify_password
+from app.security import hash_password, is_legacy_password_hash, verify_password
+from app.services import session_verification_service
 
 
 def get_user(user_id):
@@ -23,7 +24,7 @@ def register(data):
     row = fetch_value(
         """INSERT INTO usuarios (nombre, apellido, email, password)
            VALUES (%s, %s, %s, %s)
-           RETURNING id, nombre, apellido, email, fecha_registro""",
+           RETURNING id, nombre, apellido, email, email_verificado, fecha_registro""",
         (
             data["nombre"],
             data["apellido"],
@@ -35,6 +36,11 @@ def register(data):
 
 
 def login(data):
+    """Valida la contraseña y manda el correo de "Verificar Sesión".
+
+    No devuelve el token: la sesión se entrega cuando se toca el botón del
+    correo (ver `session_verification_service`).
+    """
     row = fetch_one("SELECT * FROM usuarios WHERE email = %s", (data["email"],))
     usuario = Usuario.from_row(row)
     if usuario is None or not verify_password(
@@ -48,7 +54,4 @@ def login(data):
             (hash_password(data["password"]), usuario.id),
         )
 
-    return {
-        "token": create_token(usuario.id),
-        "usuario": usuario.to_dict(),
-    }
+    return session_verification_service.start(usuario.to_dict())

@@ -32,6 +32,12 @@ class ReviewSchemaTest(unittest.TestCase):
 
         self.assertEqual(data["comentario"], None)
 
+    def test_create_accepts_half_stars(self):
+        for calificacion in (0.5, 1, 3.5, 4.0, 5):
+            with self.subTest(calificacion=calificacion):
+                data = validate_create_review({"libro_id": 3, "calificacion": calificacion})
+                self.assertEqual(data["calificacion"], calificacion)
+
     def test_create_rejects_invalid_values(self):
         invalid_bodies = [
             {"libro_id": 0, "calificacion": 4},
@@ -39,6 +45,10 @@ class ReviewSchemaTest(unittest.TestCase):
             {"libro_id": 2_147_483_648, "calificacion": 4},
             {"libro_id": 3, "calificacion": 0},
             {"libro_id": 3, "calificacion": 6},
+            {"libro_id": 3, "calificacion": 5.5},
+            {"libro_id": 3, "calificacion": 3.3},
+            {"libro_id": 3, "calificacion": float("nan")},
+            {"libro_id": 3, "calificacion": float("inf")},
             {"libro_id": 3, "calificacion": True},
             {"libro_id": 3, "calificacion": None},
             {"libro_id": 3, "calificacion": "4"},
@@ -70,6 +80,7 @@ class ReviewSchemaTest(unittest.TestCase):
             {"calificacion": None},
             {"calificacion": 0},
             {"calificacion": 6},
+            {"calificacion": 3.3},
             {"calificacion": False},
             {"comentario": 42},
             {"comentario": []},

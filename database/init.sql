@@ -34,8 +34,34 @@ CREATE TABLE IF NOT EXISTS usuarios (
     apellido VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    email_verificado BOOLEAN NOT NULL DEFAULT FALSE,
     fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- ============================================
+-- TABLA: verificaciones_sesion
+-- Cada inicio de sesión se confirma con el botón "Verificar Sesión" del correo
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS verificaciones_sesion (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    consulta_hash CHAR(64) NOT NULL UNIQUE,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expira_en TIMESTAMP NOT NULL,
+    verificada_en TIMESTAMP,
+    entregada BOOLEAN NOT NULL DEFAULT FALSE,
+
+    CONSTRAINT fk_verificacion_usuario
+        FOREIGN KEY (usuario_id)
+        REFERENCES usuarios(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_verificaciones_sesion_usuario
+    ON verificaciones_sesion (usuario_id);
 
 
 -- ============================================
@@ -116,7 +142,7 @@ CREATE TABLE IF NOT EXISTS resenas (
     id SERIAL PRIMARY KEY,
     libro_id INTEGER NOT NULL,
     usuario_id INTEGER NOT NULL,
-    calificacion INTEGER NOT NULL,
+    calificacion NUMERIC(2,1) NOT NULL,
     comentario TEXT,
     fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -131,7 +157,7 @@ CREATE TABLE IF NOT EXISTS resenas (
         ON DELETE CASCADE,
 
     CONSTRAINT check_calificacion
-        CHECK (calificacion BETWEEN 1 AND 5),
+        CHECK (calificacion BETWEEN 0.5 AND 5 AND calificacion * 2 = TRUNC(calificacion * 2)),
 
     CONSTRAINT uq_resena_libro_usuario
         UNIQUE (libro_id, usuario_id)
