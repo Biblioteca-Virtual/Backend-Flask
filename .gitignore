@@ -1,6 +1,12 @@
 .venv 
 
-*/__pycache__/
+__pycache__/
+
+.coverage
+coverage.json
+
+# Portadas que suben los usuarios (las ya versionadas siguen en el repo).
+storage/covers/*
 
 database/backups/
 

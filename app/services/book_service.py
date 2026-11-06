@@ -33,6 +33,11 @@ _UPDATE_LIBRO_STATIC = """UPDATE libros
         url_lectura = CASE WHEN %s THEN %s ELSE url_lectura END
     WHERE id = %s AND usuario_id = %s"""
 
+_UPDATE_PROGRESO = """UPDATE libros
+    SET paginas_totales = COALESCE(%s, paginas_totales),
+        paginas_leidas = COALESCE(%s, paginas_leidas)
+    WHERE id = %s AND usuario_id = %s"""
+
 _QUERY_REVIEWS_BY_LIBROS = """SELECT r.*, l.titulo AS libro_titulo,
                                      u.nombre AS usuario_nombre,
                                      u.apellido AS usuario_apellido
@@ -245,20 +250,10 @@ def update_book_progress(book_id, data, usuario_id):
     if _get_libro_row(book_id, usuario_id) is None:
         raise NotFoundError("Libro")
 
-    set_clauses = []
-    params = []
-    if "paginas_totales" in data:
-        set_clauses.append("paginas_totales = %s")
-        params.append(data["paginas_totales"])
-    if "paginas_leidas" in data:
-        set_clauses.append("paginas_leidas = %s")
-        params.append(data["paginas_leidas"])
-
-    if set_clauses:
-        params.extend([book_id, usuario_id])
-        sql = f"UPDATE libros SET {', '.join(set_clauses)} WHERE id = %s AND usuario_id = %s"
-        execute(sql, tuple(params))
-
+    execute(
+        _UPDATE_PROGRESO,
+        (data.get("paginas_totales"), data.get("paginas_leidas"), book_id, usuario_id),
+    )
     return get_book(book_id, usuario_id)
 
 
