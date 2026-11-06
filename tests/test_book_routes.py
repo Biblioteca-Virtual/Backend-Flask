@@ -87,6 +87,40 @@ class BookRoutesTest(BaseRouteTestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_catalog_lists(self):
+        for path, service in (
+            ("/api/books/categories", "list_categories"),
+            ("/api/books/authors", "list_authors"),
+        ):
+            with self.subTest(path=path), patch(f"app.routes.books.{service}", return_value=[]):
+                self.assertEqual(self.client.get(path, headers=self.headers).status_code, 200)
+
+    def test_get_book_is_scoped_to_user(self):
+        with patch("app.routes.books.get_book", return_value={"id": 3}) as service:
+            response = self.client.get("/api/books/3", headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        service.assert_called_once_with(3, 42)
+
+    def test_put_validates_against_current_location(self):
+        current = {"id": 3, "ubicacion": "web", "url_lectura": "https://lector.com/libro"}
+        with patch("app.routes.books.get_book", return_value=current), patch(
+            "app.routes.books.update_book", return_value={"id": 3}
+        ) as service:
+            response = self.client.put(
+                "/api/books/3", headers=self.headers, json={"ubicacion": "kindle"}
+            )
+
+        self.assertEqual(response.status_code, 200)
+        service.assert_called_once_with(3, {"ubicacion": "kindle", "url_lectura": None}, 42)
+
+    def test_delete_book(self):
+        with patch("app.routes.books.delete_book") as service:
+            response = self.client.delete("/api/books/3", headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        service.assert_called_once_with(3, 42)
+
     def test_routes_require_authentication(self):
         for method, path in (
             ("get", "/api/books/authors"),

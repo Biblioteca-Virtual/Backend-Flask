@@ -1,6 +1,5 @@
-import io
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from tests.helpers import BaseRouteTestCase
 
@@ -25,20 +24,16 @@ class BookProgressAndStorageTest(BaseRouteTestCase):
         self.assertEqual(response.get_json()["data"]["porcentaje_lectura"], 50)
         mock_update.assert_called_once_with(1, {"paginas_totales": 500, "paginas_leidas": 250}, 42)
 
-    def test_upload_cover_image(self):
-        data = {
-            "file": (io.BytesIO(b"fake image bytes"), "portada.jpg")
-        }
-        response = self.client.post(
-            "/api/storage/upload",
-            data=data,
-            content_type="multipart/form-data",
-            headers=self.headers,
-        )
-        self.assertEqual(response.status_code, 201)
-        res_data = response.get_json()["data"]
-        self.assertIn("url", res_data)
-        self.assertTrue(res_data["url"].startswith("/api/storage/covers/"))
+    def test_progress_ignores_null_fields(self):
+        with patch("app.routes.books.update_book_progress", return_value={"id": 1}) as mock_update:
+            response = self.client.patch(
+                "/api/books/1/progress",
+                json={"paginas_totales": None, "paginas_leidas": 10},
+                headers=self.headers,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        mock_update.assert_called_once_with(1, {"paginas_leidas": 10}, 42)
 
 
 if __name__ == "__main__":

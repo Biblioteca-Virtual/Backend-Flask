@@ -42,12 +42,16 @@ def transaction():
         close(conn)
 
 
-def _run_query(sql, params=(), fetch_fn=None, commit=False):
+def _rowcount(cursor):
+    return cursor.rowcount
+
+
+def _run_query(sql, params=(), fetch_fn=_rowcount, commit=False):
     conn = connect()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(sql, params)
-            result = fetch_fn(cursor) if fetch_fn else cursor.rowcount
+            result = fetch_fn(cursor)
             if commit:
                 conn.commit()
             return result

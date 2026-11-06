@@ -35,7 +35,11 @@ def send_session_email(usuario, link):
         )
         return False
 
-    message = _build_message(usuario["email"], context)
+    return _send(_build_message(usuario["email"], context))
+
+
+def _send(message):
+    config = current_app.config
     try:
         with smtplib.SMTP(config["MAIL_SERVER"], config["MAIL_PORT"], timeout=15) as smtp:
             smtp.starttls()

@@ -26,9 +26,7 @@ def _get_covers_dir() -> str:
     return covers_dir
 
 
-@storage_bp.post("/upload")
-@login_required
-def upload_file():
+def _validated_upload():
     if "file" not in request.files:
         raise ValidationError(["No se envió ningún archivo con el campo 'file'"])
 
@@ -40,14 +38,21 @@ def upload_file():
         raise ValidationError([
             f"Tipo de archivo no permitido. Extensiones válidas: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         ])
+    return file
 
-    original_filename = secure_filename(file.filename)
-    extension = original_filename.rsplit(".", 1)[1].lower() if "." in original_filename else "png"
-    unique_name = f"{uuid.uuid4().hex}.{extension}"
 
-    covers_dir = _get_covers_dir()
-    destination = os.path.join(covers_dir, unique_name)
-    file.save(destination)
+def _unique_name(filename: str) -> str:
+    safe_name = secure_filename(filename)
+    extension = safe_name.rsplit(".", 1)[1].lower() if "." in safe_name else "png"
+    return f"{uuid.uuid4().hex}.{extension}"
+
+
+@storage_bp.post("/upload")
+@login_required
+def upload_file():
+    file = _validated_upload()
+    unique_name = _unique_name(file.filename)
+    file.save(os.path.join(_get_covers_dir(), unique_name))
 
     relative_url = f"/api/storage/covers/{unique_name}"
     return jsonify({"data": {"url": relative_url, "filename": unique_name}}), 201

@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import MagicMock
 
 from app import create_app
 from app.security import create_token
@@ -25,27 +24,31 @@ class BaseRouteTestCase(unittest.TestCase):
         return response
 
 
-def mock_transaction(cursor):
-    context = MagicMock()
-    context.__enter__.return_value = cursor
-    context.__exit__.return_value = False
-    return context
-
-
-def make_reading_row(**overrides):
+def make_book_row(**overrides):
     row = {
-        "id": 1,
+        "id": 3,
         "usuario_id": 7,
-        "libro_id": 3,
-        "fecha_prestamo": "2026-09-25T10:00:00",
-        "fecha_devolucion": None,
-        "fecha_actualizacion": "2026-09-25T10:00:00",
-        "estado": "activo",
-        "progreso": 40,
-        "libro_cantidad": 2,
-        "libro_titulo": "Cien años de soledad",
-        "usuario_nombre": "Ada",
-        "usuario_apellido": "Lovelace",
+        "titulo": "Ficciones",
+        "descripcion": None,
+        "categoria_id": 1,
+        "categoria_nombre": "General",
+        "paginas_totales": 200,
+        "paginas_leidas": 50,
+        "imagen_portada": None,
+        "ubicacion": "fisico",
+        "url_lectura": None,
+    }
+    row.update(overrides)
+    return row
+
+
+def make_collection_row(**overrides):
+    row = {
+        "id": 5,
+        "usuario_id": 7,
+        "nombre": "Favoritos",
+        "fecha_creacion": "2026-10-30T10:00:00",
+        "cantidad_libros": 1,
     }
     row.update(overrides)
     return row

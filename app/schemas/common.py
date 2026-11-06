@@ -20,11 +20,6 @@ def check_required_text(data, field, errors):
     return str(val).strip()
 
 
-def check_positive_int(val, field, errors):
-    if val is not None and (not is_integer(val) or val <= 0):
-        errors.append(f"{field} debe ser un entero positivo")
-
-
 def check_non_negative_int(val, field, errors):
     if val is not None and (not is_integer(val) or val < 0):
         errors.append(f"{field} debe ser un entero mayor o igual a 0")
