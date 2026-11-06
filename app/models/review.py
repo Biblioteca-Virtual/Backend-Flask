@@ -8,7 +8,7 @@ class Resena:
     id: int
     libro_id: int
     usuario_id: int
-    calificacion: int
+    calificacion: float
     comentario: str
     fecha_creacion: str
     libro_titulo: str = None
@@ -22,7 +22,8 @@ class Resena:
             "libro_titulo": self.libro_titulo,
             "usuario_id": self.usuario_id,
             "usuario": format_user_name(self.usuario_nombre, self.usuario_apellido),
-            "calificacion": self.calificacion,
+            # La columna es NUMERIC: psycopg2 da un Decimal, que en JSON sería texto.
+            "calificacion": float(self.calificacion),
             "comentario": self.comentario,
             "fecha_creacion": self.fecha_creacion,
         }

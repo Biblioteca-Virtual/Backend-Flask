@@ -40,6 +40,15 @@ def validate_register(data):
     }
 
 
+def validate_secret(data, field):
+    """Valida el `token` del link del correo o la `consulta` de la pestaña del login."""
+    ensure_dict(data)
+    value = data.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise ValidationError([f"{field} es requerido"])
+    return value.strip()
+
+
 def validate_login(data):
     ensure_dict(data)
     errors = []

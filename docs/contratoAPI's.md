@@ -145,8 +145,8 @@ Content-Type: application/json
 }
 ```
 
-`libro_id` y `calificacion` son obligatorios. La calificación debe ser un entero
-entre 1 y 5. El comentario es opcional y puede ser texto o `null`.
+`libro_id` y `calificacion` son obligatorios. La calificación debe ser un valor
+entre 0.5 y 5, de a 0.5 (admite medias estrellas). El comentario es opcional y puede ser texto o `null`.
 
 ### Consultar reseñas
 

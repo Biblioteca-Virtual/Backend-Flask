@@ -1,5 +1,10 @@
 import os
 
+from dotenv import load_dotenv
+
+# Lee Backend-Flask/.env si existe (credenciales del correo, SECRET_KEY, etc.).
+load_dotenv()
+
 
 def _cors_origins():
     raw = os.getenv("CORS_ORIGINS", "http://localhost:4200")
@@ -24,3 +29,17 @@ class Config:
         "STORAGE_DIR",
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "storage")),
     )
+
+    # Link del botón "Verificar Sesión": apunta a la pantalla de Angular que
+    # confirma el inicio de sesión contra el backend.
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:4200").rstrip("/")
+    SESSION_VERIFICATION_MINUTES = int(os.getenv("SESSION_VERIFICATION_MINUTES", "15"))
+
+    # Envío de correos por SMTP (Gmail: smtp.gmail.com, puerto 587 y una
+    # "contraseña de aplicación"). Sin MAIL_USERNAME no se envía nada y el link
+    # de verificación se escribe en la consola de Flask.
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
+    MAIL_SENDER_NAME = os.getenv("MAIL_SENDER_NAME", "ÁmbarLy")

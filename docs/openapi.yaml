@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Biblioteca Virtual API
+  title: ÁmbarLy API
   version: 1.0.0
   description: |
-    API REST de Biblioteca Virtual.
+    API REST de ÁmbarLy.
 
     Todos los recursos de libros, lecturas, reseñas, ruleta y el perfil de usuario
     requieren un token JWT. Enviarlo en la cabecera `Authorization` con el formato
@@ -13,7 +13,7 @@ info:
     Las fechas se expresan en formato ISO 8601. Los identificadores de usuario,
     libro, lectura y reseña son enteros positivos.
   contact:
-    name: Biblioteca Virtual
+    name: ÁmbarLy
 servers:
   - url: http://localhost:5000
     description: Entorno local
@@ -84,7 +84,10 @@ paths:
       tags:
         - Autenticación
       summary: Registrar un usuario
-      description: Crea una cuenta de usuario y devuelve sus datos públicos.
+      description: |
+        Crea una cuenta y devuelve sus datos públicos. No inicia sesión: para
+        entrar hay que usar `/api/auth/login`, que manda el correo de
+        "Verificar Sesión".
       security: []
       requestBody:
         required: true
@@ -116,7 +119,12 @@ paths:
       tags:
         - Autenticación
       summary: Iniciar sesión
-      description: Valida las credenciales y devuelve un token JWT y los datos del usuario.
+      description: |
+        Valida las credenciales y manda un correo con el botón "Verificar Sesión".
+        No devuelve el token: la sesión se entrega cuando se toca ese botón.
+        Con `consulta` la pantalla del login pregunta en `/api/auth/session-status`
+        si ya se verificó. El link vence a los 15 minutos
+        (`SESSION_VERIFICATION_MINUTES`).
       security: []
       requestBody:
         required: true
@@ -128,16 +136,123 @@ paths:
               email: lector@example.com
               password: contraseña-segura
       responses:
+        '202':
+          description: Credenciales válidas; se mandó el correo de verificación.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PendingSession'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/verify-session:
+    post:
+      tags:
+        - Autenticación
+      summary: Verificar la sesión (botón del correo)
+      description: |
+        Confirma el `token` del link del correo y devuelve la sesión (igual que
+        un login), así la pestaña que abrió el link también queda logueada.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+      responses:
         '200':
-          description: Credenciales válidas.
+          description: Sesión verificada.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/session-status:
+    post:
+      tags:
+        - Autenticación
+      summary: Consultar si la sesión ya se verificó
+      description: |
+        La pantalla del login lo consulta cada pocos segundos con la `consulta`
+        que devolvió el login. Responde 202 mientras no se toque el botón del
+        correo; después responde 200 con la sesión, una sola vez.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - consulta
+              properties:
+                consulta:
+                  type: string
+      responses:
+        '200':
+          description: Sesión verificada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '202':
+          description: Todavía no se tocó el botón del correo.
+          content:
+            application/json:
+              example:
+                data:
+                  estado: pendiente
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/resend-session-email:
+    post:
+      tags:
+        - Autenticación
+      summary: Reenviar el correo de "Verificar Sesión"
+      description: Manda un correo con un link nuevo y renueva el vencimiento.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - consulta
+              properties:
+                consulta:
+                  type: string
+      responses:
+        '200':
+          description: Correo reenviado.
+          content:
+            application/json:
+              example:
+                data:
+                  correo_enviado: true
+                  expira_en_minutos: 15
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -1136,10 +1251,31 @@ components:
         apellido:
           type: string
           example: Apellido
+        email_verificado:
+          type: boolean
+          example: true
         fecha_registro:
           type: string
           format: date-time
           example: '2026-09-25T12:00:00Z'
+    PendingSession:
+      type: object
+      properties:
+        verificacion_pendiente:
+          type: boolean
+          example: true
+        consulta:
+          type: string
+          description: Secreto para consultar `/api/auth/session-status`.
+        email:
+          type: string
+          format: email
+        correo_enviado:
+          type: boolean
+          description: false si el correo no está configurado o falló el envío.
+        expira_en_minutos:
+          type: integer
+          example: 15
     LoginData:
       type: object
       required:
@@ -1553,11 +1689,11 @@ components:
           type: string
           example: Lector Apellido
         calificacion:
-          type: integer
-          format: int32
-          minimum: 1
+          type: number
+          minimum: 0.5
           maximum: 5
-          example: 5
+          multipleOf: 0.5
+          example: 4.5
         comentario:
           type: string
           nullable: true
@@ -1580,11 +1716,11 @@ components:
           maximum: 2147483647
           example: 1
         calificacion:
-          type: integer
-          format: int32
-          minimum: 1
+          type: number
+          minimum: 0.5
           maximum: 5
-          example: 5
+          multipleOf: 0.5
+          example: 4.5
         comentario:
           type: string
           nullable: true
@@ -1596,11 +1732,11 @@ components:
       additionalProperties: false
       properties:
         calificacion:
-          type: integer
-          format: int32
-          minimum: 1
+          type: number
+          minimum: 0.5
           maximum: 5
-          example: 4
+          multipleOf: 0.5
+          example: 3.5
         comentario:
           type: string
           nullable: true

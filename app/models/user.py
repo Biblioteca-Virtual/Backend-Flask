@@ -9,6 +9,7 @@ class Usuario:
     email: str
     password: str
     fecha_registro: str
+    email_verificado: bool = True
 
     def to_dict(self):
         data = asdict(self)
@@ -26,4 +27,5 @@ class Usuario:
             email=row["email"],
             password=row["password"],
             fecha_registro=row["fecha_registro"],
+            email_verificado=row.get("email_verificado", True),
         )

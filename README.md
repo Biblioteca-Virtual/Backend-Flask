@@ -28,9 +28,24 @@ las migraciones de `database/migrations/`, en orden:
 docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/008_catalogo_y_remover_prestamos.sql
 docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/009_colecciones.sql
 docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/010_bibliotecas_por_usuario.sql
+docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/011_verificacion_email.sql
+docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/012_verificacion_sesion.sql
+docker exec -i biblioteca_postgres psql -U biblioteca_user -d biblioteca_db < database/migrations/013_resenas_medias_estrellas.sql
 ```
 
 Son idempotentes: se pueden volver a ejecutar sin romper nada.
+
+# Correo de verificación
+Cada inicio de sesión se confirma por correo: con la contraseña correcta se
+manda un correo con el botón "Verificar Sesión" (plantilla en
+`app/templates/email/`) y la sesión recién se activa al tocarlo. El link vence a
+los 15 minutos.
+
+Para enviar correos reales con Gmail, copiá `.env.example` como `.env` y
+completá `MAIL_USERNAME` y `MAIL_PASSWORD` con una
+[contraseña de aplicación](https://myaccount.google.com/apppasswords) (requiere
+la verificación en dos pasos activada). Sin eso no se envía nada y el link de
+verificación aparece en la consola de Flask.
 
 # Ejecutar pruebas
 python -m unittest discover -s tests -v

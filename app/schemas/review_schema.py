@@ -15,8 +15,9 @@ def _validate_comment(comentario, errors):
 
 
 def _validate_rating(calificacion, errors):
-    if not is_integer(calificacion) or not 1 <= calificacion <= 5:
-        errors.append("calificacion debe ser un entero entre 1 y 5")
+    is_number = is_integer(calificacion) or isinstance(calificacion, float)
+    if not is_number or not 0.5 <= calificacion <= 5 or calificacion * 2 != int(calificacion * 2):
+        errors.append("calificacion debe ser un valor entre 0.5 y 5, de a 0.5")
 
 
 def validate_create_review(data):

@@ -1,0 +1,16 @@
+ÁmbarLy
+
+Gracias por unirte a ÁmbarLy, {{ nombre }}.
+La forma moderna de administrar tus libros.
+
+- Gestión de lectura fácil.
+- Encontrar personas interesadas en tus mismas lecturas.
+- Deja atrás el bloqueo.
+
+Tu cuenta está lista.
+Disfruta de gestionar de forma fácil tus lecturas.
+
+Para entrar, verificá tu sesión con este link:
+{{ link }}
+
+El link vence en {{ minutos }} minutos. Si no intentaste iniciar sesión en ÁmbarLy, ignorá este correo y no compartas el link.
