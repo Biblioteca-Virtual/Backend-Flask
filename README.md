@@ -16,8 +16,31 @@ python -m venv .venv
 # Ejecutar el servicio
 python run.py
 
-# Ejecutar BD
-docker compose up
+# Ejecutar solo la BD
+docker compose -f database/docker-compose.yml up -d
+
+# Levantar todo con Docker (BD + backend + frontend)
+Con Docker Desktop abierto y `Frontend-Angular` clonado al lado de este repo
+(`Biblioteca Virtual/Backend-Flask` y `Biblioteca Virtual/Frontend-Angular`),
+desde esta carpeta:
+
+```bash
+docker compose up --build -d
+```
+
+- Frontend: http://localhost:4200
+- API: http://localhost:5000 (salud en `/health`, documentación en `/docs`)
+- PostgreSQL: `localhost:5432`
+
+Detalles:
+
+- **Variables:** el `.env` es opcional; si existe, se usa para `SECRET_KEY` y el correo.
+- **Datos:** se reutiliza el volumen `database_postgres_data`, así que se conservan los datos de antes.
+- **Portadas:** quedan en `storage/`.
+- **Base aparte:** si ya estaba corriendo la base sola, primero frenala con
+  `docker compose -f database/docker-compose.yml down` (sin `-v`, para no borrar los datos).
+- **Para frenar todo:** `docker compose down`.
+- **Ver logs:** `docker compose logs -f api`, que muestra el link de verificación cuando no hay correo configurado.
 
 # Migraciones de la base de datos
 `database/init.sql` solo se ejecuta la **primera vez** que se crea el volumen

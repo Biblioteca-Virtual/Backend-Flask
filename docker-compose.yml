@@ -1,0 +1,62 @@
+# Levanta ÁmbarLy completo: base de datos, backend Flask y frontend Angular.
+#   docker compose up --build
+# Requiere que Frontend-Angular esté clonado al lado de este repo:
+#   Biblioteca Virtual/
+#   ├── Backend-Flask/      (este repo)
+#   └── Frontend-Angular/
+# URLs: frontend http://localhost:4200, API http://localhost:5000, PostgreSQL localhost:5432.
+services:
+  db:
+    image: postgres:18
+    container_name: biblioteca_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: biblioteca_user
+      POSTGRES_PASSWORD: biblioteca_password
+      POSTGRES_DB: biblioteca_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # La API espera a que PostgreSQL acepte conexiones.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U biblioteca_user -d biblioteca_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    container_name: biblioteca_api
+    restart: unless-stopped
+    # El .env es opcional: sin él se usan los valores por defecto de app/config.py.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      STORAGE_DIR: /app/storage
+    ports:
+      - "5000:5000"
+    # Las portadas subidas quedan en Backend-Flask/storage, igual que sin Docker.
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ../Frontend-Angular
+    container_name: biblioteca_web
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+
+volumes:
+  # Mismo nombre que crea database/docker-compose.yml, así se conservan los datos existentes.
+  postgres_data:
+    name: database_postgres_data
