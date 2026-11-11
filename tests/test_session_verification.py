@@ -1,3 +1,5 @@
+# Tests del inicio de sesión con verificación por correo: login, botón del correo,
+# consulta del estado desde la pestaña del login y armado del correo.
 import smtplib
 import unittest
 from unittest.mock import MagicMock, patch
@@ -10,6 +12,7 @@ from tests.helpers import BaseRouteTestCase
 SERVICE = "app.services.session_verification_service"
 
 
+# Fila de usuario de ejemplo, como la devolvería la base de datos.
 def make_user_row(**overrides):
     row = {
         "id": 7,
@@ -24,12 +27,14 @@ def make_user_row(**overrides):
     return row
 
 
+# Datos públicos del usuario de ejemplo (lo que devuelve la API, sin contraseña).
 def public_user():
     row = make_user_row()
     row.pop("password")
     return row
 
 
+# POST /api/auth/login: valida la contraseña y manda el correo, sin devolver el token.
 class LoginSendsSessionEmailTest(BaseRouteTestCase):
     def test_register_does_not_log_in(self):
         with patch("app.services.user_service.fetch_one", return_value=None), patch(
@@ -84,6 +89,7 @@ class LoginSendsSessionEmailTest(BaseRouteTestCase):
         send.assert_not_called()
 
 
+# POST /api/auth/verify-session: link válido, vencido o inexistente.
 class VerifySessionTest(BaseRouteTestCase):
     def test_link_verifies_and_returns_session(self):
         with patch(f"{SERVICE}.fetch_value", return_value={"usuario_id": 7}), patch(
@@ -121,6 +127,8 @@ class VerifySessionTest(BaseRouteTestCase):
         self.assertEqual(response.status_code, 400)
 
 
+# POST /api/auth/session-status y el reenvío del correo: pendiente, verificada (la
+# sesión se entrega una sola vez) y vencida.
 class SessionStatusTest(BaseRouteTestCase):
     def status_row(self, **overrides):
         row = {
@@ -192,6 +200,7 @@ class SessionStatusTest(BaseRouteTestCase):
         self.assertEqual(response.status_code, 400)
 
 
+# Envío y contenido del correo, con el servidor SMTP simulado.
 class SessionEmailMessageTest(BaseRouteTestCase):
     def setUp(self):
         super().setUp()

@@ -1,6 +1,11 @@
+# Modelo de un usuario registrado.
 from dataclasses import asdict, dataclass
 
 
+# Usuario con sus datos personales y el hash de su contraseña.
+# - to_dict(): arma el JSON para la API sin incluir nunca la contraseña.
+# - from_row(): crea el usuario a partir de una fila de la base de datos.
+# email_verificado vale True por defecto para los usuarios creados antes de la verificación.
 @dataclass
 class Usuario:
     id: int
@@ -13,6 +18,7 @@ class Usuario:
 
     def to_dict(self):
         data = asdict(self)
+        # el hash de la contraseña no sale nunca de la API
         data.pop("password")
         return data
 

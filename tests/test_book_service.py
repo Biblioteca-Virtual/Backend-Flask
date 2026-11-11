@@ -1,3 +1,4 @@
+# Tests del servicio de libros con la base de datos simulada (mocks de db).
 import unittest
 from unittest.mock import patch
 
@@ -8,10 +9,12 @@ from tests.helpers import make_book_row, make_review_row
 AUTOR = {"id": 2, "nombre": "Jorge Luis", "apellido": "Borges"}
 
 
+# Atajo para reemplazar una función importada dentro de book_service.
 def _patch(name, **kwargs):
     return patch.object(book_service, name, **kwargs)
 
 
+# Lecturas: listado con búsqueda, detalle, 404 de libros ajenos y reseñas compartidas.
 class BookReadTest(unittest.TestCase):
     def test_list_without_search_sends_null_filter(self):
         with _patch("fetch_all", side_effect=[[make_book_row()], [AUTOR]]) as fetch_all:
@@ -64,6 +67,7 @@ class BookReadTest(unittest.TestCase):
         self.assertEqual(fetch_all.call_args.args[1], ([3],))
 
 
+# Escrituras: crear, editar, cambiar el progreso y borrar libros.
 class BookWriteTest(unittest.TestCase):
     def test_create_defaults_to_general_category_and_links_authors(self):
         data = {"titulo": "Ficciones", "descripcion": None, "autores": [2]}
@@ -151,6 +155,7 @@ class BookWriteTest(unittest.TestCase):
             book_service.delete_book(3, 7)
 
 
+# Categorías y autores: listados, creación y devolución de los que ya existen.
 class CatalogTest(unittest.TestCase):
     def test_list_categories(self):
         with _patch("fetch_all", return_value=[{"id": 1, "nombre": "General"}]):

@@ -1,11 +1,14 @@
+# Validación de los datos de registro, inicio de sesión y verificación por correo.
 import re
 
 from app.errors.exceptions import ValidationError
 from app.schemas.common import check_required_text, ensure_dict
 
+# Formato básico de email: algo@algo.algo, sin espacios.
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+# El email es obligatorio y tiene que tener un formato válido.
 def _check_email_format(email, errors):
     if not email or not str(email).strip():
         errors.append("email es requerido")
@@ -13,6 +16,7 @@ def _check_email_format(email, errors):
         errors.append("email no tiene un formato válido")
 
 
+# La contraseña es obligatoria y tiene un largo mínimo (6 caracteres por defecto).
 def _check_password_length(password, errors, min_len=6):
     if not password:
         errors.append("password es requerido")
@@ -20,6 +24,8 @@ def _check_password_length(password, errors, min_len=6):
         errors.append(f"password debe tener al menos {min_len} caracteres")
 
 
+# Registro: nombre, apellido, email y contraseña. El email se guarda en minúsculas
+# para que no haya dos cuentas que solo difieran en mayúsculas.
 def validate_register(data):
     ensure_dict(data)
     errors = []
@@ -49,6 +55,8 @@ def validate_secret(data, field):
     return value.strip()
 
 
+# Inicio de sesión: solo exige que vengan email y contraseña. Si son correctos lo
+# decide el servicio al compararlos con la base de datos.
 def validate_login(data):
     ensure_dict(data)
     errors = []

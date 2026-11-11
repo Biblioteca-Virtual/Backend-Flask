@@ -1,3 +1,4 @@
+# Tests de usuarios: validaciones, servicio, contraseñas y token JWT.
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -19,6 +20,7 @@ VALID_USER = {
 }
 
 
+# Validaciones de registro y de login.
 class UserSchemaTest(unittest.TestCase):
     def test_register_normalizes_fields(self):
         result = validate_register(VALID_USER)
@@ -54,6 +56,7 @@ class UserSchemaTest(unittest.TestCase):
         self.assertEqual(ctx.exception.errors, ["email es requerido", "password es requerido"])
 
 
+# Registro (email repetido), login y migración de hashes viejos a Argon2.
 class UserServiceTest(unittest.TestCase):
     def test_get_user_hides_nothing_it_should_not_return(self):
         row = {
@@ -102,6 +105,7 @@ class UserServiceTest(unittest.TestCase):
             user_service.login({"email": "x@example.com", "password": "secreto1"})
 
 
+# Hash y verificación de contraseñas, con formatos nuevo y viejo.
 class PasswordTest(unittest.TestCase):
     def test_argon2_password(self):
         stored = hash_password("secreto1")
@@ -116,6 +120,7 @@ class PasswordTest(unittest.TestCase):
         self.assertFalse(verify_password(stored, "otra"))
 
 
+# Rutas protegidas con token válido, vencido o inválido, y GET /api/auth/me.
 class TokenRouteTest(BaseRouteTestCase):
     def test_me_returns_the_authenticated_user(self):
         with patch("app.routes.auth.get_user", return_value={"id": 42}) as get_user:

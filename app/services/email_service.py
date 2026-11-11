@@ -1,3 +1,4 @@
+# Envío del correo de verificación de sesión por SMTP, con versión HTML y texto.
 import os
 import smtplib
 from email.message import EmailMessage
@@ -5,6 +6,7 @@ from email.utils import formataddr
 
 from flask import current_app, render_template
 
+# Carpeta con las imágenes que se adjuntan al correo.
 _IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "templates", "email", "images")
 
 # Imágenes del correo, adjuntas "inline": el HTML las referencia como cid:<nombre>.
@@ -38,6 +40,8 @@ def send_session_email(usuario, link):
     return _send(_build_message(usuario["email"], context))
 
 
+# Envía el mensaje por SMTP con TLS. Las contraseñas de aplicación de Gmail se
+# muestran con espacios, por eso se quitan. Devuelve True si se envió.
 def _send(message):
     config = current_app.config
     try:
@@ -52,6 +56,8 @@ def _send(message):
     return True
 
 
+# Arma el correo: asunto, remitente, versión en texto plano y versión HTML con las
+# imágenes adjuntas inline para que se vean sin descargar nada de internet.
 def _build_message(destinatario, context):
     config = current_app.config
     message = EmailMessage()

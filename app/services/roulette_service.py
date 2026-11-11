@@ -1,3 +1,4 @@
+# Ruleta de lectura: sugiere al azar qué libro leer a continuación.
 from app.db import fetch_one
 from app.errors.exceptions import ConflictError
 from app.services.book_service import get_book

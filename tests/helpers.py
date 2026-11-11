@@ -1,9 +1,14 @@
+# Utilidades compartidas por los tests: una clase base para probar rutas y
+# fábricas de filas de ejemplo como las que devolvería la base de datos.
 import unittest
 
 from app import create_app
 from app.security import create_token
 
 
+# Base de los tests de rutas: crea la app en modo TESTING, un cliente HTTP de prueba
+# y un token válido del usuario 42 en self.headers. assert_auth_required() comprueba
+# que una ruta responda 401 cuando se llama sin token.
 class BaseRouteTestCase(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
@@ -24,6 +29,7 @@ class BaseRouteTestCase(unittest.TestCase):
         return response
 
 
+# Fila de libro de ejemplo; con argumentos se reemplazan los campos que haga falta.
 def make_book_row(**overrides):
     row = {
         "id": 3,
@@ -42,6 +48,7 @@ def make_book_row(**overrides):
     return row
 
 
+# Fila de colección de ejemplo, con el mismo mecanismo de reemplazo.
 def make_collection_row(**overrides):
     row = {
         "id": 5,
@@ -54,6 +61,7 @@ def make_collection_row(**overrides):
     return row
 
 
+# Fila de reseña de ejemplo (incluye los datos del JOIN con libro y usuario).
 def make_review_row(**overrides):
     row = {
         "id": 1,

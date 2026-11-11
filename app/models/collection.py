@@ -1,6 +1,10 @@
+# Modelo de una colección: un grupo de libros que arma el usuario.
 from dataclasses import dataclass, field
 
 
+# Colección con su nombre, la cantidad de libros y, en el detalle, la lista de libros.
+# - to_dict(): arma el JSON que devuelve la API.
+# - from_row(): crea la colección a partir de una fila; los libros se cargan aparte.
 @dataclass
 class Coleccion:
     id: int

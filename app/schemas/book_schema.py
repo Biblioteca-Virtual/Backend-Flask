@@ -1,3 +1,4 @@
+# Validación de los datos que llegan a las rutas de libros, autores y categorías.
 from app.errors.exceptions import ValidationError
 from app.models.book import UBICACIONES
 from app.schemas.common import (
@@ -7,6 +8,7 @@ from app.schemas.common import (
     is_integer,
 )
 
+# Campos que se pueden enviar al editar un libro.
 BOOK_FIELDS = {
     "titulo",
     "descripcion",
@@ -19,32 +21,40 @@ BOOK_FIELDS = {
     "url_lectura",
 }
 
+# Largo máximo de la URL de lectura (igual que la columna en la base de datos).
 MAX_URL = 500
 
+# Campos de páginas: se validan igual al crear, al editar y al cambiar el progreso.
 _PAGE_FIELDS = ("paginas_totales", "paginas_leidas")
 
 
+# Los autores llegan como una lista de ids enteros.
 def _valid_autores(autores):
     return isinstance(autores, list) and all(is_integer(a) for a in autores)
 
 
+# Si vienen autores, tienen que tener el formato correcto (pueden faltar).
 def _check_autores_field(autores, errors):
     if autores is not None and not _valid_autores(autores):
         errors.append("autores debe ser una lista de ids")
 
 
+# Valida las páginas totales y leídas que hayan llegado: enteros >= 0.
 def _check_paginas(data, errors):
     for field in _PAGE_FIELDS:
         if data.get(field) is not None:
             check_non_negative_int(data.get(field), field, errors)
 
 
+# Quita espacios de la URL; si queda vacía la convierte en None.
 def _clean_url(value):
     if isinstance(value, str):
         return value.strip() or None
     return value
 
 
+# Para libros web: la URL es obligatoria, debe ser http/https y no superar MAX_URL.
+# Devuelve el mensaje de error o None si la URL está bien.
 def _web_url_error(url):
     if not isinstance(url, str) or not url:
         return "url_lectura es requerida cuando la ubicación es web"
@@ -65,16 +75,20 @@ def _check_ubicacion(ubicacion, url, errors):
         errors.append(error)
 
 
+# Ubicación por defecto: "fisico". La URL solo se guarda si la ubicación es web;
+# en los demás casos se guarda None.
 def _location_fields(ubicacion, url, errors):
     ubicacion = ubicacion or "fisico"
     _check_ubicacion(ubicacion, url, errors)
     return {"ubicacion": ubicacion, "url_lectura": url if ubicacion == "web" else None}
 
 
+# Portada sin espacios; si viene vacía se guarda None.
 def _clean_cover(data):
     return (data.get("imagen_portada") or "").strip() or None
 
 
+# El título es obligatorio al crear un libro.
 def _required_title(data, errors):
     titulo = (data.get("titulo") or "").strip()
     if not titulo:
@@ -82,6 +96,7 @@ def _required_title(data, errors):
     return titulo
 
 
+# Sin categoría se usa la de id 1; si viene, tiene que ser un entero.
 def _category_or_default(cat_id, errors):
     if cat_id is None or cat_id == "":
         return 1
@@ -90,11 +105,14 @@ def _category_or_default(cat_id, errors):
     return cat_id
 
 
+# Si se juntó algún error, responde 400 con todos ellos.
 def _raise_if_errors(errors):
     if errors:
         raise ValidationError(errors)
 
 
+# Crear un libro: valida todos los campos y devuelve los datos listos para guardar,
+# con valores por defecto para lo que no se envió.
 def validate_create_book(data):
     ensure_dict(data)
     errors = []
@@ -118,6 +136,7 @@ def validate_create_book(data):
     }
 
 
+# En una edición, valida solo los campos que llegaron (el título no puede quedar vacío).
 def _check_update_fields(data, errors):
     titulo = data.get("titulo")
     if titulo is not None and not str(titulo).strip():
@@ -128,6 +147,8 @@ def _check_update_fields(data, errors):
     _check_paginas(data, errors)
 
 
+# Si se cambia la ubicación o la URL, valida la combinación final usando los valores
+# actuales del libro para lo que no se envió.
 def _updated_location(data, current_ubicacion, current_url, errors):
     if "ubicacion" not in data and "url_lectura" not in data:
         return {}
@@ -135,6 +156,8 @@ def _updated_location(data, current_ubicacion, current_url, errors):
     return _location_fields(data.get("ubicacion", current_ubicacion), url, errors)
 
 
+# Arma el diccionario con los campos enviados, ya limpios. Un título null se ignora
+# para no guardar el texto "None".
 def _updated_fields(data):
     result = {}
     if data.get("titulo") is not None:
@@ -169,6 +192,7 @@ def validate_update_book(data, current_ubicacion="fisico", current_url=None):
     return {**location, **_updated_fields(data)}
 
 
+# Cambiar el progreso de lectura: exige al menos uno de los dos campos de páginas.
 def validate_update_progress(data):
     ensure_dict(data)
     if not any(field in data for field in _PAGE_FIELDS):
@@ -180,6 +204,7 @@ def validate_update_progress(data):
     return {field: int(data[field]) for field in _PAGE_FIELDS if data.get(field) is not None}
 
 
+# Crear un autor: nombre completo obligatorio, de hasta 200 caracteres.
 def validate_author(data):
     ensure_dict(data)
     completo = data.get("nombre_completo")
@@ -192,6 +217,7 @@ def validate_author(data):
     return {"nombre_completo": completo}
 
 
+# Crear una categoría: nombre obligatorio, de hasta 100 caracteres.
 def validate_category(data):
     ensure_dict(data)
     nombre = data.get("nombre")

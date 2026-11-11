@@ -1,9 +1,11 @@
+# Tests de las rutas de colecciones con el servicio simulado.
 import unittest
 from unittest.mock import patch
 
 from tests.helpers import BaseRouteTestCase
 
 
+# Cada test llama a una ruta de /api/collections y revisa la respuesta.
 class CollectionRoutesTest(BaseRouteTestCase):
 
     def test_list_collections_of_authenticated_user(self):

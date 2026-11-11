@@ -1,9 +1,12 @@
+# Lógica de negocio de libros, autores y categorías: consultas a la base de datos,
+# controles de pertenencia y armado de las respuestas.
 from app.db import execute, fetch_all, fetch_one, fetch_value
 from app.errors.exceptions import NotFoundError, ValidationError
 from app.models.book import Libro
 from app.models.review import Resena
 from app.services.title_match import same_book
 
+# Autores de un libro (tabla intermedia libros_autores).
 _QUERY_AUTORES_BY_LIBRO = """SELECT a.id, a.nombre, a.apellido
     FROM libros_autores la
     JOIN autores a ON a.id = la.autor_id
@@ -15,6 +18,8 @@ _QUERY_LIBRO_BY_ID = """SELECT l.*, COALESCE(c.nombre, 'General') AS categoria_n
     LEFT JOIN categorias c ON c.id = l.categoria_id
     WHERE l.id = %s AND l.usuario_id = %s"""
 
+# Libros del usuario. Si el segundo parámetro es NULL no filtra; si no, busca el
+# texto dentro del título sin importar mayúsculas.
 _QUERY_LIBROS_LIST = """SELECT l.*, COALESCE(c.nombre, 'General') AS categoria_nombre
     FROM libros l
     LEFT JOIN categorias c ON c.id = l.categoria_id
@@ -22,6 +27,10 @@ _QUERY_LIBROS_LIST = """SELECT l.*, COALESCE(c.nombre, 'General') AS categoria_n
       AND (%s IS NULL OR LOWER(l.titulo) LIKE LOWER(%s))
     ORDER BY l.id"""
 
+# Actualización parcial con una sola consulta fija (sin armar SQL a mano):
+# - COALESCE(%s, campo) deja el valor actual cuando llega NULL.
+# - CASE WHEN %s THEN ... recibe un booleano "¿vino el campo?", así se puede
+#   guardar NULL a propósito (por ejemplo, borrar la descripción).
 _UPDATE_LIBRO_STATIC = """UPDATE libros
     SET titulo = COALESCE(%s, titulo),
         descripcion = CASE WHEN %s THEN %s ELSE descripcion END,
@@ -33,11 +42,13 @@ _UPDATE_LIBRO_STATIC = """UPDATE libros
         url_lectura = CASE WHEN %s THEN %s ELSE url_lectura END
     WHERE id = %s AND usuario_id = %s"""
 
+# Cambia solo las páginas; la que llega como NULL conserva su valor.
 _UPDATE_PROGRESO = """UPDATE libros
     SET paginas_totales = COALESCE(%s, paginas_totales),
         paginas_leidas = COALESCE(%s, paginas_leidas)
     WHERE id = %s AND usuario_id = %s"""
 
+# Reseñas de varios libros a la vez (ANY recibe una lista de ids), las más nuevas primero.
 _QUERY_REVIEWS_BY_LIBROS = """SELECT r.*, l.titulo AS libro_titulo,
                                      u.nombre AS usuario_nombre,
                                      u.apellido AS usuario_apellido
@@ -47,6 +58,7 @@ _QUERY_REVIEWS_BY_LIBROS = """SELECT r.*, l.titulo AS libro_titulo,
     WHERE r.libro_id = ANY(%s)
     ORDER BY r.fecha_creacion DESC, r.id DESC"""
 
+# Campos que guarda _UPDATE_LIBRO_STATIC; los autores se actualizan aparte.
 _UPDATE_FIELDS = (
     "titulo",
     "descripcion",
@@ -59,21 +71,25 @@ _UPDATE_FIELDS = (
 )
 
 
+# Devuelve los autores del libro como lista de diccionarios.
 def _fetch_autores(libro_id):
     rows = fetch_all(_QUERY_AUTORES_BY_LIBRO, (libro_id,))
     return [dict(row) for row in rows]
 
 
+# Fila del libro solo si pertenece al usuario; si no, None.
 def _get_libro_row(libro_id, usuario_id):
     return fetch_one(_QUERY_LIBRO_BY_ID, (libro_id, usuario_id))
 
 
+# Convierte la fila en el JSON del libro, con sus autores incluidos.
 def _serialize_libro(row):
     libro = Libro.from_row(row)
     libro.autores = _fetch_autores(libro.id)
     return libro.to_dict()
 
 
+# Todas las categorías, ordenadas por nombre.
 def list_categories():
     rows = fetch_all("SELECT id, nombre, descripcion FROM categorias ORDER BY nombre")
     return [dict(row) for row in rows]
@@ -99,6 +115,7 @@ def create_category(data):
     return dict(row), True
 
 
+# Todos los autores, ordenados por apellido y nombre.
 def list_authors():
     rows = fetch_all("SELECT id, nombre, apellido FROM autores ORDER BY apellido, nombre")
     return [dict(row) for row in rows]
@@ -134,6 +151,7 @@ def create_author(data):
     return dict(row), True
 
 
+# Sin categoría usa la de id 1; si viene una, comprueba que exista (si no, 400).
 def _ensure_categoria(categoria_id):
     if not categoria_id:
         return 1
@@ -143,6 +161,7 @@ def _ensure_categoria(categoria_id):
     return categoria_id
 
 
+# Comprueba que existan todos los autores indicados; lista los que falten en el error.
 def _ensure_autores(autores):
     if not autores:
         return
@@ -153,6 +172,7 @@ def _ensure_autores(autores):
         raise ValidationError([f"autores no existen: {missing}"])
 
 
+# Vincula los autores al libro. ON CONFLICT DO NOTHING ignora los ya vinculados.
 def _add_autores(libro_id, autores):
     for autor_id in autores:
         execute(
@@ -161,12 +181,14 @@ def _add_autores(libro_id, autores):
         )
 
 
+# Libros del usuario; con `search` filtra por parte del título (los % son comodines).
 def list_books(usuario_id, search=None):
     parameter = f"%{search}%" if search else None
     rows = fetch_all(_QUERY_LIBROS_LIST, (usuario_id, parameter, parameter))
     return [_serialize_libro(row) for row in rows]
 
 
+# Un libro del usuario; 404 si no existe o es de otro usuario.
 def get_book(book_id, usuario_id):
     row = _get_libro_row(book_id, usuario_id)
     if row is None:
@@ -174,6 +196,7 @@ def get_book(book_id, usuario_id):
     return _serialize_libro(row)
 
 
+# Crea el libro después de comprobar la categoría y los autores, y lo devuelve completo.
 def create_book(data, usuario_id):
     cat_id = _ensure_categoria(data.get("categoria_id"))
     _ensure_autores(data.get("autores", []))
@@ -200,6 +223,7 @@ def create_book(data, usuario_id):
     return get_book(row["id"], usuario_id)
 
 
+# Guarda los campos simples que llegaron (si no llegó ninguno, no hace nada).
 def _update_book_fields(book_id, data, usuario_id):
     if not any(k in data for k in _UPDATE_FIELDS):
         return
@@ -229,12 +253,14 @@ def _update_book_fields(book_id, data, usuario_id):
     )
 
 
+# Reemplaza la lista de autores: borra los vínculos y crea los nuevos.
 def _update_book_autores(book_id, autores):
     execute("DELETE FROM libros_autores WHERE libro_id = %s", (book_id,))
     _ensure_autores(autores)
     _add_autores(book_id, autores)
 
 
+# Edita un libro del usuario (404 si no es suyo) y devuelve cómo quedó.
 def update_book(book_id, data, usuario_id):
     if _get_libro_row(book_id, usuario_id) is None:
         raise NotFoundError("Libro")
@@ -246,6 +272,7 @@ def update_book(book_id, data, usuario_id):
     return get_book(book_id, usuario_id)
 
 
+# Actualiza las páginas totales o leídas de un libro del usuario.
 def update_book_progress(book_id, data, usuario_id):
     if _get_libro_row(book_id, usuario_id) is None:
         raise NotFoundError("Libro")
@@ -257,6 +284,7 @@ def update_book_progress(book_id, data, usuario_id):
     return get_book(book_id, usuario_id)
 
 
+# Borra un libro del usuario y devuelve la fila borrada (404 si no es suyo).
 def delete_book(book_id, usuario_id):
     row = _get_libro_row(book_id, usuario_id)
     if row is None:

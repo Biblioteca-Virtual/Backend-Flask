@@ -1,9 +1,11 @@
+# Tests del acceso a la base de datos (db.py) con conexiones y cursores simulados.
 import unittest
 from unittest.mock import MagicMock, patch
 
 from app import create_app, db
 
 
+# transaction(): commit si todo sale bien, rollback si falla, y devuelve la conexión.
 class DatabaseTransactionTest(unittest.TestCase):
     def test_transaction_commits_and_returns_connection(self):
         connection = MagicMock()
@@ -34,6 +36,7 @@ class DatabaseTransactionTest(unittest.TestCase):
         close.assert_called_once_with(connection)
 
 
+# fetch_all, fetch_one, fetch_value y execute: qué devuelven y cuándo hacen commit.
 class RunQueryTest(unittest.TestCase):
     def setUp(self):
         self.connection = MagicMock()
@@ -91,6 +94,7 @@ class RunQueryTest(unittest.TestCase):
         self.connection.rollback.assert_not_called()
 
 
+# connect() y close(): el pool se crea una sola vez con los datos de la configuración.
 class ConnectionPoolTest(unittest.TestCase):
     def setUp(self):
         original = patch.object(db, "_pool", None)

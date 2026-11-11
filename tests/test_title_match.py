@@ -1,8 +1,10 @@
+# Tests de la comparación de títulos (mismo libro escrito distinto).
 import unittest
 
 from app.services.title_match import normalize_title, same_book
 
 
+# Tildes, mayúsculas, errores de tipeo y libros distintos de una misma saga.
 class TitleMatchTest(unittest.TestCase):
     def test_normalize_removes_accents_case_and_punctuation(self):
         self.assertEqual(

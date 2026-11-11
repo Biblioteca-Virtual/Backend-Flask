@@ -1,8 +1,13 @@
+# Modelo de una reseña: la calificación y el comentario de un usuario sobre un libro.
 from dataclasses import dataclass
 
 from app.models.common import format_user_name
 
 
+# Reseña con el título del libro y el nombre del autor de la reseña (vienen de un JOIN).
+# La calificación admite medias estrellas (por ejemplo, 3.5).
+# - to_dict(): arma el JSON que devuelve la API.
+# - from_row(): crea la reseña a partir de una fila de la base de datos.
 @dataclass
 class Resena:
     id: int

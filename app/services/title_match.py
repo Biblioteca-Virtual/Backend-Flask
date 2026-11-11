@@ -16,6 +16,7 @@ from difflib import SequenceMatcher
 # "Harry Potter y la cámara de los secretos".
 SIMILARITY_THRESHOLD = 0.85
 
+# Todo lo que no sea letra o número (se reemplaza por un espacio).
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
 
@@ -26,6 +27,8 @@ def normalize_title(title):
     return _NON_ALNUM.sub(" ", without_accents.lower()).strip()
 
 
+# Verdadero si los dos títulos son el mismo libro: iguales al normalizarlos o con un
+# parecido de al menos SIMILARITY_THRESHOLD. Un título vacío nunca coincide.
 def same_book(title_a, title_b):
     a, b = normalize_title(title_a), normalize_title(title_b)
     if not a or not b:

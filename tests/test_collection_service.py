@@ -1,3 +1,4 @@
+# Tests del servicio de colecciones con la base de datos simulada.
 import unittest
 from unittest.mock import patch
 
@@ -9,10 +10,12 @@ from app.services import collection_service
 from tests.helpers import make_collection_row
 
 
+# Atajo para reemplazar una función importada dentro de collection_service.
 def _patch(name, **kwargs):
     return patch.object(collection_service, name, **kwargs)
 
 
+# Listado y detalle de colecciones.
 class CollectionReadTest(unittest.TestCase):
     def test_list_is_scoped_to_user(self):
         with _patch("fetch_all", return_value=[make_collection_row()]) as fetch_all:
@@ -35,6 +38,7 @@ class CollectionReadTest(unittest.TestCase):
             collection_service.get_collection(5, 99)
 
 
+# Crear, renombrar y borrar colecciones, incluidos los nombres repetidos (409).
 class CollectionWriteTest(unittest.TestCase):
     def test_create_returns_the_new_collection(self):
         with _patch("fetch_value", return_value={"id": 5}) as fetch_value, _patch(
@@ -89,6 +93,7 @@ class CollectionWriteTest(unittest.TestCase):
             collection_service.delete_collection(5, 99)
 
 
+# Agregar y sacar libros de una colección.
 class CollectionBooksTest(unittest.TestCase):
     def test_add_book_links_it(self):
         with _patch("_get_collection_row"), _patch("fetch_one", return_value={"id": 3}), _patch(
