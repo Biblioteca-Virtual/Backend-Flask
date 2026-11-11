@@ -1,3 +1,4 @@
+# Tests del servicio de reseñas con la base de datos simulada.
 import unittest
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ from app.services import review_service
 from tests.helpers import make_review_row as _row
 
 
+# Lectura, creación (incluida la reseña repetida), edición y borrado.
 class ReviewServiceTest(unittest.TestCase):
     def test_list_serializes_reviews(self):
         with patch.object(

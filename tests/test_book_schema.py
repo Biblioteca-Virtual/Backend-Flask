@@ -1,3 +1,4 @@
+# Tests de las validaciones de libros, autores y categorías (book_schema.py).
 import unittest
 
 from app.errors.exceptions import ValidationError
@@ -10,6 +11,8 @@ from app.schemas.book_schema import (
 )
 
 
+# Casos válidos e inválidos de cada validador. assert_invalid() comprueba que se
+# lance ValidationError con el mensaje esperado.
 class BookSchemaTest(unittest.TestCase):
     def test_create_defaults_to_physical_location(self):
         result = validate_create_book({"titulo": "Ficciones"})

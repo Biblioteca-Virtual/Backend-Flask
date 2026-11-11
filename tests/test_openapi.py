@@ -1,9 +1,11 @@
+# Tests de la documentación OpenAPI publicada en /openapi.yaml.
 import unittest
 from pathlib import Path
 
 from app import create_app
 
 
+# Que el archivo se sirva y documente las rutas de la API.
 class OpenApiSpecTest(unittest.TestCase):
     def setUp(self):
         self.app = create_app()

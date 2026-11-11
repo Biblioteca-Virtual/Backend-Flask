@@ -1,3 +1,5 @@
+# Rutas de colecciones (/api/collections). Todas exigen sesión iniciada y trabajan
+# solo con las colecciones del usuario.
 from flask import Blueprint, g, jsonify, request
 
 from app.schemas.collection_schema import validate_collection, validate_collection_book
@@ -12,21 +14,26 @@ from app.services.collection_service import (
     rename_collection,
 )
 
+# Blueprint que agrupa estas rutas; create_app() lo registra con el prefijo /api/collections.
 collections_bp = Blueprint("collections", __name__)
 
 
+# GET /api/collections: lista las colecciones del usuario con la cantidad de libros.
+# strict_slashes=False acepta la URL con o sin barra final.
 @collections_bp.get("/", strict_slashes=False)
 @login_required
 def get_collections():
     return jsonify({"data": list_collections(g.usuario_id)}), 200
 
 
+# GET /api/collections/<id>: detalle de una colección con sus libros.
 @collections_bp.get("/<int:collection_id>")
 @login_required
 def get_collection_by_id(collection_id):
     return jsonify({"data": get_collection(collection_id, g.usuario_id)}), 200
 
 
+# POST /api/collections: crea una colección vacía.
 @collections_bp.post("/", strict_slashes=False)
 @login_required
 def post_collection():
@@ -36,6 +43,7 @@ def post_collection():
     return jsonify({"data": coleccion}), 201
 
 
+# PUT o PATCH /api/collections/<id>: cambia el nombre de la colección.
 @collections_bp.put("/<int:collection_id>")
 @collections_bp.patch("/<int:collection_id>")
 @login_required
@@ -46,6 +54,7 @@ def put_collection(collection_id):
     return jsonify({"data": coleccion}), 200
 
 
+# DELETE /api/collections/<id>: borra la colección (los libros no se borran).
 @collections_bp.delete("/<int:collection_id>")
 @login_required
 def delete_collection_by_id(collection_id):
@@ -53,6 +62,7 @@ def delete_collection_by_id(collection_id):
     return jsonify({"message": "Colección eliminada"}), 200
 
 
+# POST /api/collections/<id>/books: agrega un libro del usuario a la colección.
 @collections_bp.post("/<int:collection_id>/books")
 @login_required
 def post_collection_book(collection_id):
@@ -62,6 +72,7 @@ def post_collection_book(collection_id):
     return jsonify({"data": coleccion}), 200
 
 
+# DELETE /api/collections/<id>/books/<libro>: saca el libro de la colección.
 @collections_bp.delete("/<int:collection_id>/books/<int:book_id>")
 @login_required
 def delete_collection_book(collection_id, book_id):

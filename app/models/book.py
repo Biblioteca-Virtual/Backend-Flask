@@ -1,8 +1,15 @@
+# Modelo de un libro de la biblioteca de un usuario.
 from dataclasses import dataclass, field
 
+# Dónde está el libro: en papel, en el Kindle o en una página web.
 UBICACIONES = ("fisico", "kindle", "web")
 
 
+# Libro con sus datos, su categoría, sus autores y el avance de lectura.
+# - porcentaje_lectura: páginas leídas sobre totales, redondeado y limitado a 0..100.
+# - terminado: verdadero cuando se leyeron todas las páginas.
+# - to_dict(): arma el JSON que devuelve la API.
+# - from_row(): crea el libro a partir de una fila de la base de datos.
 @dataclass
 class Libro:
     id: int
@@ -20,6 +27,7 @@ class Libro:
 
     @property
     def porcentaje_lectura(self) -> int:
+        # sin páginas totales no se puede calcular: se toma como 0 %
         if not self.paginas_totales or self.paginas_totales <= 0:
             return 0
         porcentaje = round((self.paginas_leidas / self.paginas_totales) * 100)
@@ -53,6 +61,7 @@ class Libro:
     def from_row(cls, row):
         if row is None:
             return None
+        # los autores no vienen en la fila: el servicio los carga aparte
         return cls(
             id=row["id"],
             usuario_id=row.get("usuario_id"),

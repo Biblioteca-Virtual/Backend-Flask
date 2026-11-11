@@ -1,8 +1,10 @@
+# Tests de la ruta de la ruleta de lectura.
 from unittest.mock import patch
 
 from tests.helpers import BaseRouteTestCase
 
 
+# POST /api/roulette/spin con el servicio simulado.
 class RouletteRoutesTest(BaseRouteTestCase):
 
     def test_spin_uses_authenticated_user(self):

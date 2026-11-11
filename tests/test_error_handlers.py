@@ -1,3 +1,4 @@
+# Tests de los manejadores de errores y de la ruta /health.
 import unittest
 from unittest.mock import patch
 
@@ -8,6 +9,7 @@ from werkzeug.exceptions import BadRequest
 from app import create_app
 
 
+# Crea una vista de prueba que solo lanza el error indicado.
 def _raiser(error):
     def view():
         raise error
@@ -15,6 +17,7 @@ def _raiser(error):
     return view
 
 
+# Registra rutas que lanzan cada tipo de error y revisa el JSON y el código HTTP.
 class ErrorHandlersTest(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
@@ -69,6 +72,7 @@ class ErrorHandlersTest(unittest.TestCase):
         log.assert_called_once()
 
 
+# /health con la base de datos disponible y caída.
 class HealthRouteTest(unittest.TestCase):
     def setUp(self):
         self.client = create_app().test_client()

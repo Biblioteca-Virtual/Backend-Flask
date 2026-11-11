@@ -22,23 +22,28 @@ from app.errors.exceptions import ValidationError
 from app.security import create_token
 from app.services.email_service import send_session_email
 
+# Mensajes de error que ve el usuario en el frontend.
 INVALID_LINK = "El link de verificación no es válido"
 EXPIRED = "La verificación venció: iniciá sesión de nuevo"
 ALREADY_USED = "Esta verificación ya se usó: iniciá sesión de nuevo"
 
 
+# Hash SHA-256 del secreto: en la base de datos nunca se guarda el valor original.
 def _hash(secret):
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()
 
 
+# Minutos de validez de una verificación (SESSION_VERIFICATION_MINUTES).
 def _minutes():
     return current_app.config["SESSION_VERIFICATION_MINUTES"]
 
 
+# Link del botón del correo: la pantalla del frontend que confirma la sesión.
 def _link(token):
     return f"{current_app.config['FRONTEND_URL']}/verificar-sesion?token={token}"
 
 
+# Arma la sesión que recibe el frontend: el token JWT y los datos del usuario.
 def _session(usuario_id):
     row = fetch_one(
         "SELECT id, nombre, apellido, email, email_verificado, fecha_registro FROM usuarios WHERE id = %s",

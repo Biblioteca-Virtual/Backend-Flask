@@ -1,9 +1,11 @@
+# Tests de la ruta que cambia el progreso de lectura de un libro.
 import unittest
 from unittest.mock import patch
 
 from tests.helpers import BaseRouteTestCase
 
 
+# PATCH /api/books/<id>/progress con el servicio simulado, incluidos los campos null.
 class BookProgressAndStorageTest(BaseRouteTestCase):
     def test_patch_book_progress(self):
         updated_book = {

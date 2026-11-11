@@ -1,3 +1,4 @@
+# Fábrica de la aplicación Flask: arma la app, la configura y registra las rutas.
 from flask import Flask
 from flask_cors import CORS
 
@@ -5,6 +6,8 @@ from app.config import Config
 from app.errors.handlers import register_error_handlers
 
 
+# Habilita CORS solo para /api/*, con los orígenes de CORS_ORIGINS (el frontend Angular).
+# Permite los encabezados que usa el frontend (token y JSON) y cachea el preflight 10 minutos.
 def _init_cors(app):
     CORS(
         app,
@@ -16,6 +19,8 @@ def _init_cors(app):
     )
 
 
+# Registra cada blueprint con su prefijo. Los imports van adentro de la función para
+# evitar imports circulares (las rutas importan cosas de `app`).
 def _register_blueprints(app):
     from app.routes.auth import auth_bp
     from app.routes.books import books_bp
@@ -26,9 +31,11 @@ def _register_blueprints(app):
     from app.routes.roulette import roulette_bp
     from app.routes.storage import storage_bp
 
+    # La documentación y el health check quedan fuera de /api.
     app.register_blueprint(docs_bp)
     app.register_blueprint(health_bp)
 
+    # Cada módulo de la API con su prefijo de URL.
     api_routes = [
         (auth_bp, "/api/auth"),
         (books_bp, "/api/books"),
@@ -41,6 +48,7 @@ def _register_blueprints(app):
         app.register_blueprint(bp, url_prefix=prefix)
 
 
+# Punto de entrada: crea la app, carga la configuración, CORS, manejo de errores y rutas.
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)

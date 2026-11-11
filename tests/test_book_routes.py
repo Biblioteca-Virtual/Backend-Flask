@@ -1,9 +1,12 @@
+# Tests de las rutas de libros: códigos HTTP, validación y que exijan token.
+# El servicio se reemplaza con mocks, así no hace falta una base de datos.
 import unittest
 from unittest.mock import patch
 
 from tests.helpers import BaseRouteTestCase
 
 
+# Cada test llama a una ruta de /api/books y revisa la respuesta.
 class BookRoutesTest(BaseRouteTestCase):
     def test_list_is_scoped_to_authenticated_user(self):
         with patch("app.routes.books.list_books", return_value=[]) as service:

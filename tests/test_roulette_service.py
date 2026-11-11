@@ -1,3 +1,4 @@
+# Tests del servicio de la ruleta de lectura.
 import unittest
 from unittest.mock import patch
 
@@ -5,6 +6,7 @@ from app.errors.exceptions import ConflictError
 from app.services import roulette_service
 
 
+# Devuelve un libro pendiente o responde 409 si no hay ninguno.
 class RouletteServiceTest(unittest.TestCase):
     def test_spin_returns_random_book(self):
         book = {

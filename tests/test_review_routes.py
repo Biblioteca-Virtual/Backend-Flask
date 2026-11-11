@@ -1,8 +1,10 @@
+# Tests de las rutas de reseñas con el servicio simulado.
 from unittest.mock import patch
 
 from tests.helpers import BaseRouteTestCase
 
 
+# Cada test llama a una ruta de /api/reviews y revisa la respuesta.
 class ReviewRoutesTest(BaseRouteTestCase):
 
     def test_list_reviews(self):

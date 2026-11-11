@@ -1,3 +1,4 @@
+# Tests de las validaciones de reseñas (calificación de 0.5 a 5 y comentario).
 import unittest
 
 from app.errors.exceptions import ValidationError
@@ -7,6 +8,7 @@ from app.schemas.review_schema import (
 )
 
 
+# Casos válidos e inválidos al crear y editar reseñas.
 class ReviewSchemaTest(unittest.TestCase):
     def test_create_ignores_client_user_id(self):
         data = validate_create_review(

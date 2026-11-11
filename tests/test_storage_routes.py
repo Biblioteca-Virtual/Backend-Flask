@@ -1,3 +1,4 @@
+# Tests de la subida y descarga de portadas, usando una carpeta temporal.
 import io
 import os
 import tempfile
@@ -6,6 +7,7 @@ import unittest
 from tests.helpers import BaseRouteTestCase
 
 
+# upload() es un atajo que sube un archivo a /api/storage/upload con token.
 class StorageRoutesTest(BaseRouteTestCase):
     def setUp(self):
         super().setUp()
