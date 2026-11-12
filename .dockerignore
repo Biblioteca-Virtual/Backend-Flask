@@ -1,0 +1,13 @@
+# Lo que no entra en la imagen del backend.
+.git
+.github
+.venv
+.env
+tests
+storage
+database
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.coverage
+coverage.json
